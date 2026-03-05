@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Northwind · Detalle de Órdenes</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <a class="back-link" href="./index.html">⟵ Volver al panel</a>
+    <h1 data-hero-title>Detalle de órdenes</h1>
+    <p data-hero-subtitle>Gestiona las combinaciones de productos por pedido, cantidades, descuentos y precios unitarios.</p>
+  </header>
+  <main class="crud-layout">
+    <section class="panel">
+      <div class="controls">
+        <label class="field" data-table-label>
+          Tabla
+          <select id="tableSelect"></select>
+        </label>
+        <label class="field">
+          Buscar
+          <input type="text" id="searchInput" placeholder="Filtrar por texto" />
+        </label>
+        <label class="field">
+          Página
+          <input type="number" id="pageInput" min="1" value="1" />
+        </label>
+        <label class="field">
+          Tamaño
+          <input type="number" id="pageSizeInput" min="5" max="100" value="20" />
+        </label>
+      </div>
+      <div class="actions">
+        <button class="btn-accent" id="reloadBtn">Actualizar</button>
+        <button class="btn-ghost" id="clearSelectionBtn">Limpiar selección</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="grid-stats" id="gridStats"></div>
+      <div class="status" id="status"></div>
+    </section>
+    <section class="panel">
+      <div>
+        <h2 style="margin:0 0 0.35rem">Combinación pedido-producto</h2>
+        <small id="formMode">Modo: crear</small>
+      </div>
+      <form id="recordForm" class="crud-form">
+        <div class="form-grid" id="formFields"></div>
+        <div class="actions">
+          <button type="submit" class="btn-accent">Guardar</button>
+          <button type="button" class="btn-alt" id="newBtn">Nuevo</button>
+          <button type="button" class="btn-ghost" id="deleteBtn">Eliminar</button>
+        </div>
+      </form>
+    </section>
+  </main>
+  <script type="module">
+    import { initCrudPage } from './assets/crudPage.js';
+    initCrudPage({
+      defaultTable: 'order_details',
+      visibleTables: ['order_details'],
+      allowTableChange: false,
+      pageSize: 20,
+      heroTitle: 'Detalle de órdenes',
+      heroSubtitle: 'Controla cantidades, descuentos y combos productos/pedido'
+    });
+  </script>
+</body>
+</html>

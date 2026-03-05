@@ -1,0 +1,30 @@
+{
+  "name": "northwind-crud",
+  "version": "1.0.0",
+  "description": "CRUD completo para la base de datos Northwind usando Node.js, Express y MySQL.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "lint": "echo 'No hay lint configurado'"
+  },
+  "keywords": [
+    "northwind",
+    "crud",
+    "express",
+    "mysql"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mysql2": "^3.9.3",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
