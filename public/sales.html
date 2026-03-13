@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Northwind · Ventas</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <style>
+    .sales-layout { display: grid; grid-template-columns: 1fr 420px; gap: 1.5rem; padding: 1.5rem; align-items: start; }
+    @media (max-width: 900px) { .sales-layout { grid-template-columns: 1fr; } }
+    .sale-row td { font-size: .85rem; padding: .4rem .55rem; vertical-align: middle; }
+    .sale-row:hover td { background: var(--surface-2, #1e293b); cursor: pointer; }
+    .sale-row.selected td { background: rgba(56,189,248,.1); }
+    .items-section { border-top: 1px solid var(--border,#334155); margin-top: .75rem; padding-top: .75rem; }
+    .item-row { display: grid; grid-template-columns: 1fr 60px 80px 60px 28px; gap: .4rem; align-items: end; margin-bottom: .4rem; }
+    .item-row .field { margin: 0; }
+    .total-line { display: flex; justify-content: flex-end; gap: .75rem; align-items: baseline; margin-top: .5rem; font-size: .9rem; }
+    .total-line strong { font-size: 1.1rem; color: var(--accent,#f97316); }
+    .detail-header { font-weight:700; font-size:.8rem; color:var(--muted,#94a3b8); text-transform:uppercase; letter-spacing:.05em; margin-top:1rem; margin-bottom:.3rem; }
+    .detail-items-table td, .detail-items-table th { font-size:.82rem; padding:.3rem .5rem; }
+    @media (max-width: 540px) {
+      .item-row { grid-template-columns: 1fr 50px 70px 50px 28px; gap: .25rem; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ── Navigation ── -->
+  <nav class="top-nav">
+    <a class="brand" href="./index.html" aria-label="Ir al panel principal">
+      <span class="brand-mark" aria-hidden="true">NW</span>
+      <div class="brand-copy"><strong>Northwind Ops</strong><small>Control Room</small></div>
+    </a>
+    <div class="nav-links">
+      <a href="./studio.html">Ops Studio</a>
+      <details class="nav-menu">
+        <summary>Módulos</summary>
+        <div class="nav-menu__panel">
+          <div class="nav-menu__group" data-group="operaciones">
+            <span>Operaciones</span>
+            <a href="./inventory.html">Inventario</a>
+            <a href="./sales.html">Ventas</a>
+            <a href="./purchase-requests.html">Solicitudes de compra</a>
+          </div>
+          <div class="nav-menu__group" data-group="catalogo">
+            <span>Catálogo</span>
+            <a href="./products.html">Productos</a>
+            <a href="./categories.html">Categorías</a>
+          </div>
+          <div class="nav-menu__group" data-group="transacciones">
+            <span>Transacciones</span>
+            <a href="./orders.html">Órdenes</a>
+            <a href="./order-details.html">Detalle de órdenes</a>
+          </div>
+          <div class="nav-menu__group" data-group="relaciones">
+            <span>Relaciones</span>
+            <a href="./customers.html">Clientes</a>
+            <a href="./suppliers.html">Proveedores</a>
+          </div>
+          <div class="nav-menu__group" data-group="talento">
+            <span>Talento &amp; logística</span>
+            <a href="./employees.html">Empleados</a>
+            <a href="./shippers.html">Transportistas</a>
+          </div>
+        </div>
+      </details>
+      <a href="./sales.html">Ventas</a>
+      <a class="nav-cta" href="https://github.com/vldyrz708/northwind-mysql" target="_blank" rel="noreferrer">GitHub</a>
+    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+  </nav>
+  <div class="nav-categories" aria-label="Accesos rápidos">
+    <a href="./studio.html" data-tone="ops">Multi-tabla</a>
+    <a href="./inventory.html" data-tone="ops">Inventario</a>
+    <a href="./sales.html" data-tone="sales" aria-current="page">Ventas</a>
+    <a href="./purchase-requests.html" data-tone="supply">Compras</a>
+    <a href="./products.html" data-tone="catalog">Productos</a>
+    <a href="./categories.html" data-tone="catalog">Categorías</a>
+    <a href="./orders.html" data-tone="sales">Órdenes</a>
+    <a href="./customers.html" data-tone="crm">Clientes</a>
+    <a href="./suppliers.html" data-tone="supply">Proveedores</a>
+    <a href="./employees.html" data-tone="people">Talento</a>
+    <a href="./shippers.html" data-tone="log">Logística</a>
+  </div>
+
+  <!-- ── Hero ── -->
+  <header class="hero hero--detail">
+    <div class="hero__content">
+      <a class="back-link" href="./index.html">⟵ Volver al panel</a>
+      <p class="eyebrow">Operaciones</p>
+      <h1>Ventas</h1>
+      <p>Consulta y crea ventas con reducción automática de inventario. Descarga notas de venta en PDF.</p>
+    </div>
+    <div class="hero-meta hero-meta--compact">
+      <article class="stat-card"><span>Módulo</span><strong>Ventas</strong><small>Órdenes + stock</small></article>
+      <article class="stat-card"><span>PDF</span><strong>Nota de venta</strong><small>Generación instantánea</small></article>
+    </div>
+  </header>
+
+  <div class="sales-layout">
+
+    <!-- ── Sales list ── -->
+    <section class="panel">
+      <header class="panel-header">
+        <div><p class="eyebrow">Historial</p><h2>Ventas registradas</h2></div>
+        <button class="btn-accent" id="newSaleBtn">+ Nueva venta</button>
+      </header>
+      <div class="controls">
+        <label class="field">
+          <span class="field-title">Buscar</span>
+          <input type="text" id="saleSearch" placeholder="Cliente o # de orden…" />
+        </label>
+        <label class="field">
+          <span class="field-title">Página</span>
+          <input type="number" id="salePage" value="1" min="1" style="width:5rem" />
+        </label>
+        <button class="btn-ghost" id="saleReload">Actualizar</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th>
+              <th>Artículos</th><th>Total</th><th>Enviado</th><th>PDF</th><th class="col-actions">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="salesBody"></tbody>
+        </table>
+      </div>
+      <div id="salesStats" class="grid-stats"></div>
+    </section>
+
+    <!-- ── Right panel: detail | new sale form ── -->
+    <aside id="rightPanel">
+
+      <!-- Sale detail (default view) -->
+      <section class="panel" id="saleDetailPanel">
+        <header class="panel-header">
+          <div><p class="eyebrow">Detalle</p><h2 id="detailTitle">Venta seleccionada</h2></div>
+          <a id="detailPdfBtn" class="pdf-badge" target="_blank" style="display:none">📄 PDF</a>
+        </header>
+        <div id="saleDetailBody" style="padding:1rem;font-size:.88rem;color:var(--muted)">
+          Selecciona una venta de la lista para ver su detalle.
+        </div>
+      </section>
+
+      <!-- New sale form (hidden by default) -->
+      <section class="panel" id="newSalePanel" style="display:none">
+        <header class="panel-header">
+          <div><p class="eyebrow">Nueva operación</p><h2>Crear venta</h2></div>
+          <button class="btn-ghost btn-sm" id="cancelSaleBtn">✕ Cancelar</button>
+        </header>
+        <form id="saleForm" style="padding:1rem">
+          <div class="form-grid">
+            <label class="field">
+              <span class="field-title">Cliente <span class="required">*</span></span>
+              <select id="saleCustomer" required>
+                <option value="">— seleccionar —</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-title">Vendedor</span>
+              <select id="saleEmployee">
+                <option value="">— ninguno —</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-title">Fecha de orden</span>
+              <input type="date" id="saleDate" />
+            </label>
+            <label class="field">
+              <span class="field-title">Fecha requerida</span>
+              <input type="date" id="saleRequired" />
+            </label>
+            <label class="field">
+              <span class="field-title">Transportista</span>
+              <select id="saleShipper">
+                <option value="">— ninguno —</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-title">Flete</span>
+              <input type="number" id="saleFreight" min="0" step="0.01" value="0" />
+            </label>
+          </div>
+
+          <!-- Products section -->
+          <div class="items-section">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+              <strong style="font-size:.9rem">Productos</strong>
+              <button type="button" class="btn-ghost btn-sm" id="addItemBtn">+ Agregar</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 60px 80px 60px 28px;gap:.3rem;font-size:.75rem;color:var(--muted);padding:0 2px;margin-bottom:.2rem">
+              <span>Producto</span><span>Cant.</span><span>Precio</span><span>Desc%</span><span></span>
+            </div>
+            <div id="saleItems"></div>
+            <div class="total-line">
+              <span>Total:</span>
+              <strong id="saleTotal">$0.00</strong>
+            </div>
+          </div>
+
+          <div class="actions" style="margin-top:1rem">
+            <button type="submit" class="btn-accent" id="saleSubmitBtn" disabled>Guardar venta</button>
+          </div>
+          <div id="saleMsg" style="margin-top:.5rem;font-size:.88rem"></div>
+        </form>
+      </section>
+
+    </aside>
+  </div>
+
+  <script type="module">
+    const API = '/api';
+    const $ = (id) => document.getElementById(id);
+    const fmtMoney = (n) => n != null ? `$${Number(n).toFixed(2)}` : '$0.00';
+    const fmtDate  = (d) => d ? String(d).split('T')[0] : '—';
+
+    // ── Cache for dropdowns ───────────────────────────────────────────────────
+    let products = [];
+
+    const loadDropdowns = async () => {
+      const [custsRes, empsRes, shipsRes, prods] = await Promise.all([
+        fetch(`${API}/customers?pageSize=500`).then(r => r.json()),
+        fetch(`${API}/employees?pageSize=200`).then(r => r.json()),
+        fetch(`${API}/shippers?pageSize=100`).then(r => r.json()),
+        fetch(`${API}/inventory/stock?pageSize=300`).then(r => r.json()),
+      ]);
+      products = prods.data || [];
+      const custs = (custsRes.data || []).filter(c => c.CustomerID && String(c.CustomerID).trim()).map(c => ({ value: c.CustomerID, label: c.CompanyName || c.CustomerID }));
+      const emps  = (empsRes.data  || []).map(e => ({ value: e.EmployeeID, label: `${e.FirstName || ''} ${e.LastName || ''}`.trim() || `Empleado #${e.EmployeeID}` }));
+      const ships = (shipsRes.data || []).map(s => ({ value: s.ShipperID,  label: s.CompanyName || `Transportista #${s.ShipperID}` }));
+      fillSelect('saleCustomer', custs, '— seleccionar —');
+      fillSelect('saleEmployee', emps, '— ninguno —');
+      fillSelect('saleShipper',  ships, '— ninguno —');
+    };
+
+    const fillSelect = (id, opts, placeholder) => {
+      const sel = $(id);
+      sel.innerHTML = `<option value="">${placeholder}</option>`;
+      (Array.isArray(opts) ? opts : []).forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.value ?? o;
+        opt.textContent = o.label ?? o;
+        sel.appendChild(opt);
+      });
+    };
+
+    // ── Sales list ────────────────────────────────────────────────────────────
+    const loadSales = async () => {
+      const page   = $('salePage').value;
+      const search = $('saleSearch').value;
+      const res  = await fetch(`${API}/sales?page=${page}&pageSize=15&search=${encodeURIComponent(search)}`);
+      const data = await res.json();
+      const tbody = $('salesBody');
+      tbody.innerHTML = '';
+      (data.data || []).forEach(s => {
+        const shipped = s.ShippedDate
+          ? `<span class="badge badge-shipped">${fmtDate(s.ShippedDate)}</span>`
+          : `<span class="badge badge-pending">Pendiente</span>`;
+        const tr = document.createElement('tr');
+        tr.className = 'sale-row';
+        tr.dataset.id = s.OrderID;
+        tr.innerHTML = `
+          <td>${s.OrderID}</td>
+          <td>${fmtDate(s.OrderDate)}</td>
+          <td>${s.CustomerName || s.CustomerID}</td>
+          <td>${s.EmployeeName?.trim() || '—'}</td>
+          <td>${s.ItemCount || 0}</td>
+          <td><strong>${fmtMoney(s.Total)}</strong></td>
+          <td>${shipped}</td>
+          <td><a class="pdf-badge" href="/api/pdf/sale/${s.OrderID}" target="_blank">📄 PDF</a></td>
+          <td class="row-actions"><button class="btn-row btn-row-view" data-id="${s.OrderID}" title="Ver detalle">🔍</button></td>
+        `;
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('.pdf-badge') || e.target.closest('.btn-row-view')) return;
+          loadSaleDetail(s.OrderID);
+          tbody.querySelectorAll('.sale-row').forEach(r => r.classList.remove('selected'));
+          tr.classList.add('selected');
+        });
+        tr.querySelector('.btn-row-view').addEventListener('click', () => {
+          loadSaleDetail(s.OrderID);
+          tbody.querySelectorAll('.sale-row').forEach(r => r.classList.remove('selected'));
+          tr.classList.add('selected');
+        });
+        tbody.appendChild(tr);
+      });
+      $('salesStats').textContent = `Mostrando ${(data.data||[]).length} de ${data.total} ventas · Página ${data.page}`;
+    };
+
+    // ── Sale detail ───────────────────────────────────────────────────────────
+    const loadSaleDetail = async (orderId) => {
+      showDetail();
+      $('detailTitle').textContent = `Orden #${orderId}`;
+      $('saleDetailBody').innerHTML = '<p style="color:var(--muted)">Cargando…</p>';
+      const res = await fetch(`${API}/sales/${orderId}`);
+      if (!res.ok) { $('saleDetailBody').innerHTML = '<p style="color:#dc2626">Error al cargar detalle.</p>'; return; }
+      const s = await res.json();
+
+      $('detailPdfBtn').href = `/api/pdf/sale/${orderId}`;
+      $('detailPdfBtn').style.display = 'inline';
+
+      const rows = (s.items || []).map(i => `
+        <tr>
+          <td>${i.ProductName}</td>
+          <td style="text-align:right">${i.Quantity}</td>
+          <td style="text-align:right">${fmtMoney(i.UnitPrice)}</td>
+          <td style="text-align:right">${(Number(i.Discount||0)*100).toFixed(0)}%</td>
+          <td style="text-align:right"><strong>${fmtMoney(i.LineTotal)}</strong></td>
+        </tr>
+      `).join('');
+
+      $('saleDetailBody').innerHTML = `
+        <div class="detail-header">Información general</div>
+        <p><b>Cliente:</b> ${s.CustomerName || s.CustomerID}</p>
+        <p><b>Contacto:</b> ${s.ContactName || '—'}</p>
+        <p><b>Vendedor:</b> ${s.EmployeeName || '—'}</p>
+        <p><b>Fecha:</b> ${fmtDate(s.OrderDate)} &nbsp;|&nbsp; <b>Enviado:</b> ${fmtDate(s.ShippedDate)}</p>
+        <p><b>Flete:</b> ${fmtMoney(s.Freight)}</p>
+        <div class="detail-header">Productos</div>
+        <table class="detail-items-table" style="width:100%;border-collapse:collapse">
+          <thead><tr><th style="text-align:left">Producto</th><th>Cant.</th><th>P.U.</th><th>Desc.</th><th>Subtotal</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p style="text-align:right;margin-top:.5rem;font-size:1rem">
+          <b>TOTAL: ${fmtMoney(s.Total)}</b>
+          ${s.Freight ? ` + <span style="color:var(--muted)">flete ${fmtMoney(s.Freight)}</span>` : ''}
+        </p>
+      `;
+    };
+
+    // ── Sale form modal ────────────────────────────────────────────────────────
+    let saleFormModal = null;
+
+    const initSaleModal = () => {
+      const panel = $('newSalePanel');
+      if (!panel) { return null; }
+      const h2 = panel.querySelector('h2');
+      if (h2 && !h2.id) { h2.id = 'sale-form-modal-title'; }
+      panel.style.display = '';
+      const overlay = document.createElement('div');
+      overlay.className = 'crud-modal-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-labelledby', h2?.id || '');
+      overlay.setAttribute('aria-hidden', 'true');
+      const box = document.createElement('div');
+      box.className = 'crud-modal-box';
+      box.style.maxWidth = '600px';
+      box.appendChild(panel);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) { showDetail(); } });
+      overlay.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { showDetail(); return; }
+        if (e.key === 'Tab') {
+          const focusable = [...box.querySelectorAll(
+            'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled])'
+          )];
+          if (!focusable.length) { return; }
+          const first = focusable[0]; const last = focusable[focusable.length - 1];
+          if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      });
+      return overlay;
+    };
+
+    const showDetail = () => {
+      $('saleDetailPanel').style.display = '';
+      $('newSaleBtn').style.display = '';
+      if (saleFormModal) { saleFormModal.setAttribute('aria-hidden', 'true'); }
+    };
+    const showForm = () => {
+      $('newSaleBtn').style.display = 'none';
+      if (saleFormModal) {
+        saleFormModal.setAttribute('aria-hidden', 'false');
+        setTimeout(() => {
+          const first = saleFormModal.querySelector('select:not([disabled]), input[type="date"]');
+          first?.focus();
+        }, 80);
+      }
+    };
+
+    $('newSaleBtn').addEventListener('click', () => { showForm(); resetSaleForm(); });
+    $('cancelSaleBtn').addEventListener('click', showDetail);
+
+    // ── Dynamic item rows ─────────────────────────────────────────────────────
+    let itemCount = 0;
+
+    const addItemRow = (defaults = {}) => {
+      itemCount++;
+      const id = itemCount;
+      const opts = products.map(p =>
+        `<option value="${p.ProductID}" data-price="${p.UnitPrice}" data-stock="${p.UnitsInStock}"
+          ${defaults.ProductID == p.ProductID ? 'selected' : ''}>${p.ProductName} (${p.UnitsInStock})</option>`
+      ).join('');
+      const div = document.createElement('div');
+      div.className = 'item-row';
+      div.id = `item-${id}`;
+      div.innerHTML = `
+        <select class="item-product" data-id="${id}">
+          <option value="">— producto —</option>
+          ${opts}
+        </select>
+        <input type="number" class="item-qty" data-id="${id}" min="1" value="${defaults.Quantity||1}" />
+        <input type="number" class="item-price" data-id="${id}" step="0.01" value="${defaults.UnitPrice||''}" placeholder="0.00" />
+        <input type="number" class="item-disc" data-id="${id}" min="0" max="100" value="${defaults.Discount||0}" />
+        <button type="button" class="btn-ghost btn-sm" data-remove="${id}" title="Eliminar">✕</button>
+      `;
+      // auto-fill price and validate stock when product changes
+      div.querySelector('.item-product').addEventListener('change', (e) => {
+        const opt = e.target.selectedOptions[0];
+        if (opt?.dataset?.price) {
+          div.querySelector('.item-price').value = opt.dataset.price;
+        }
+        const stock = Number(opt?.dataset?.stock ?? 0);
+        const qtyInput = div.querySelector('.item-qty');
+        if (opt?.value) {
+          qtyInput.max = stock > 0 ? stock : 0;
+          qtyInput.title = stock > 0 ? `Máx. ${stock} en stock` : 'Sin stock disponible';
+        } else {
+          qtyInput.removeAttribute('max');
+          qtyInput.title = '';
+        }
+        const qty = Number(qtyInput.value) || 0;
+        qtyInput.toggleAttribute('data-overstock', !!opt?.value && qty > stock);
+        calcTotal();
+        updateSaleSubmit();
+      });
+      div.querySelector('.item-qty').addEventListener('input', (e) => {
+        const opt = div.querySelector('.item-product').selectedOptions[0];
+        const stock = Number(opt?.dataset?.stock ?? Infinity);
+        e.target.toggleAttribute('data-overstock', !!opt?.value && Number(e.target.value) > stock);
+        calcTotal();
+        updateSaleSubmit();
+      });
+      div.querySelector('.item-price').addEventListener('input', calcTotal);
+      div.querySelector('.item-disc').addEventListener('input', calcTotal);
+      div.querySelector('[data-remove]').addEventListener('click', () => {
+        div.remove();
+        calcTotal();
+        updateSaleSubmit();
+      });
+      $('saleItems').appendChild(div);
+      calcTotal();
+    };
+
+    const calcTotal = () => {
+      let total = 0;
+      document.querySelectorAll('.item-row').forEach(row => {
+        const qty   = Number(row.querySelector('.item-qty')?.value   || 0);
+        const price = Number(row.querySelector('.item-price')?.value || 0);
+        const disc  = Number(row.querySelector('.item-disc')?.value  || 0) / 100;
+        total += qty * price * (1 - disc);
+      });
+      $('saleTotal').textContent = fmtMoney(total);
+    };
+
+    const resetSaleForm = () => {
+      $('saleForm').reset();
+      $('saleItems').innerHTML = '';
+      itemCount = 0;
+      $('saleTotal').textContent = '$0.00';
+      $('saleMsg').textContent = '';
+      $('saleDate').value = new Date().toISOString().split('T')[0];
+      addItemRow();
+      updateSaleSubmit();
+    };
+
+    // ── Submit button state ───────────────────────────────────────────────────
+    const updateSaleSubmit = () => {
+      const hasCustomer = $('saleCustomer').selectedIndex > 0 && !!$('saleCustomer').value;
+      const rows = [...document.querySelectorAll('#saleItems .item-row')];
+      const hasValidItem = rows.some(row => {
+        const product  = row.querySelector('.item-product').value;
+        const qty      = Number(row.querySelector('.item-qty').value);
+        const badStock = row.querySelector('.item-qty').hasAttribute('data-overstock');
+        return product && qty > 0 && !badStock;
+      });
+      const btn = $('saleSubmitBtn');
+      btn.disabled = !(hasCustomer && hasValidItem);
+      btn.title = !hasCustomer
+        ? 'Selecciona un cliente primero'
+        : !hasValidItem ? 'Agrega al menos un producto con cantidad válida y stock suficiente'
+        : '';
+    };
+
+    $('saleCustomer').addEventListener('change', updateSaleSubmit);
+    $('addItemBtn').addEventListener('click', () => { addItemRow(); updateSaleSubmit(); });
+
+    // ── Sale form submit ──────────────────────────────────────────────────────
+    $('saleForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msgEl = $('saleMsg');
+      msgEl.textContent = '';
+
+      const items = [...document.querySelectorAll('.item-row')].map(row => ({
+        ProductID: Number(row.querySelector('.item-product').value),
+        Quantity:  Number(row.querySelector('.item-qty').value),
+        UnitPrice: Number(row.querySelector('.item-price').value),
+        Discount:  Number(row.querySelector('.item-disc').value) / 100,
+      })).filter(i => i.ProductID && i.Quantity > 0);
+
+      if (!items.length) { msgEl.style.color='#dc2626'; msgEl.textContent='Agrega al menos un producto.'; return; }
+
+      const payload = {
+        order: {
+          CustomerID: $('saleCustomer').value,
+          EmployeeID: $('saleEmployee').value ? Number($('saleEmployee').value) : null,
+          OrderDate:  $('saleDate').value || null,
+          RequiredDate: $('saleRequired').value || null,
+          ShipVia:    $('saleShipper').value ? Number($('saleShipper').value) : null,
+          Freight:    Number($('saleFreight').value) || 0,
+        },
+        items,
+      };
+
+      try {
+        const res = await fetch(`${API}/sales`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.message || 'Error al crear venta');
+        msgEl.style.color = '#059669';
+        msgEl.textContent = `✓ Venta #${body.OrderID} creada correctamente.`;
+        await loadSales();
+        setTimeout(() => {
+          showDetail();
+          loadSaleDetail(body.OrderID);
+        }, 1200);
+      } catch (err) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = `✗ ${err.message}`;
+      }
+    });
+
+    // ── Pagination ────────────────────────────────────────────────────────────
+    $('saleReload').addEventListener('click', loadSales);
+    $('saleSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadSales(); });
+    $('salePage').addEventListener('change', loadSales);
+
+    // ── Boot ──────────────────────────────────────────────────────────────────
+    saleFormModal = initSaleModal();
+    await Promise.all([loadDropdowns(), loadSales()]);
+    $('saleDate').value = new Date().toISOString().split('T')[0];
+  </script>
+</body>
+</html>
