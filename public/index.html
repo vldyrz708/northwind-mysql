@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -7,56 +7,205 @@
   <link rel="stylesheet" href="./assets/styles.css" />
 </head>
 <body>
-  <header class="hero">
-    <h1>Northwind Control Room</h1>
-    <p>Selecciona el módulo que necesitas para administrar la base de datos Northwind. Cada vista ya viene conectada al backend Express/MySQL, lista para empezar a crear, editar o borrar registros.</p>
+  <nav class="top-nav">
+    <a class="brand" href="./index.html" aria-label="Ir al panel principal">
+      <span class="brand-mark" aria-hidden="true">NW</span>
+      <div class="brand-copy">
+        <strong>Northwind Ops</strong>
+        <small>Control Room</small>
+      </div>
+    </a>
+    <div class="nav-links">
+      <a href="./studio.html">Ops Studio</a>
+      <details class="nav-menu">
+        <summary>Módulos</summary>
+        <div class="nav-menu__panel">
+          <div class="nav-menu__group" data-group="operaciones">
+            <span>Operaciones</span>
+            <a href="./inventory.html">Inventario</a>
+            <a href="./sales.html">Ventas</a>
+            <a href="./purchase-requests.html">Solicitudes de compra</a>
+          </div>
+          <div class="nav-menu__group" data-group="catalogo">
+            <span>Catálogo</span>
+            <a href="./products.html">Productos</a>
+            <a href="./categories.html">Categorías</a>
+          </div>
+          <div class="nav-menu__group" data-group="transacciones">
+            <span>Transacciones</span>
+            <a href="./orders.html">Órdenes</a>
+            <a href="./order-details.html">Detalle de órdenes</a>
+          </div>
+          <div class="nav-menu__group" data-group="relaciones">
+            <span>Relaciones</span>
+            <a href="./customers.html">Clientes</a>
+            <a href="./suppliers.html">Proveedores</a>
+          </div>
+          <div class="nav-menu__group" data-group="talento">
+            <span>Talento &amp; logística</span>
+            <a href="./employees.html">Empleados</a>
+            <a href="./shippers.html">Transportistas</a>
+          </div>
+        </div>
+      </details>
+      <a href="./orders.html">Órdenes</a>
+      <a class="nav-cta" href="https://github.com/vldyrz708/northwind-mysql" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="nav-links">☰</button>
+  </nav>
+  <div class="nav-categories" aria-label="Accesos rápidos">
+    <a href="./studio.html" data-tone="ops">Multi-tabla</a>
+    <a href="./inventory.html" data-tone="ops">Inventario</a>
+    <a href="./sales.html" data-tone="sales">Ventas</a>
+    <a href="./purchase-requests.html" data-tone="supply">Compras</a>
+    <a href="./products.html" data-tone="catalog">Productos</a>
+    <a href="./categories.html" data-tone="catalog">Categorías</a>
+    <a href="./orders.html" data-tone="sales">Órdenes</a>
+    <a href="./customers.html" data-tone="crm">Clientes</a>
+    <a href="./suppliers.html" data-tone="supply">Proveedores</a>
+    <a href="./employees.html" data-tone="people">Talento</a>
+    <a href="./shippers.html" data-tone="log">Logística</a>
+  </div>
+
+  <header class="hero hero--landing">
+    <div class="hero__content">
+      <p class="eyebrow">Data Command Hub</p>
+      <h1>Northwind Control Room</h1>
+      <p>Selecciona el módulo ideal para administrar la base de datos Northwind. Cada vista ya está conectada al backend Express/MySQL para crear, editar o borrar registros sin fricción.</p>
+      <div class="hero-actions">
+        <a class="btn-accent" href="./studio.html">Entrar al Ops Studio</a>
+        <a class="btn-ghost" href="https://github.com/vldyrz708/northwind-mysql" target="_blank" rel="noreferrer">Ver repositorio</a>
+      </div>
+    </div>
+    <div class="hero-meta">
+      <article class="stat-card">
+        <span>Tablas conectadas</span>
+        <strong>9</strong>
+        <small>CRUD listo para operar</small>
+      </article>
+      <article class="stat-card">
+        <span>SQL base</span>
+        <strong>MySQL</strong>
+        <small>Optimizado para Express</small>
+      </article>
+      <article class="stat-card">
+        <span>Modo en vivo</span>
+        <strong>Tiempo real</strong>
+        <small>Sin refrescar la página</small>
+      </article>
+    </div>
   </header>
+
   <section class="landing-grid">
-    <a class="card" href="./studio.html">
+    <a class="card" data-tone="ops" href="./studio.html">
+      <div class="card-head">
+        <span class="card-icon" aria-hidden="true"></span>
+        <span class="pill">Multi-tabla</span>
+      </div>
       <h2>Ops Studio</h2>
       <p>Panel universal para cambiar entre todas las tablas en segundos.</p>
-      <span>Multi-tabla</span>
+      <div class="card-footer">
+        <span>Entrar</span>
+        <span aria-hidden="true">→</span>
+      </div>
     </a>
-    <a class="card" href="./products.html">
+    <a class="card" data-tone="catalog" href="./products.html">
+      <div class="card-head">
+        <span class="card-icon" aria-hidden="true"></span>
+        <span class="pill">Catálogo</span>
+      </div>
       <h2>Productos</h2>
       <p>Gestiona precios, stock, categoría y proveedor.</p>
-      <span>Catálogo</span>
+      <div class="card-footer">
+        <span>Gestionar</span>
+        <span aria-hidden="true">→</span>
+      </div>
     </a>
-    <a class="card" href="./orders.html">
+    <a class="card" data-tone="sales" href="./orders.html">
+      <div class="card-head">
+        <span class="card-icon" aria-hidden="true"></span>
+        <span class="pill">Ventas</span>
+      </div>
       <h2>Órdenes</h2>
       <p>Control total de pedidos, fechas y logística.</p>
-      <span>Ventas</span>
+      <div class="card-footer">
+        <span>Gestionar</span>
+        <span aria-hidden="true">→</span>
+      </div>
     </a>
-    <a class="card" href="./order-details.html">
+    <a class="card" data-tone="sales" href="./order-details.html">
+      <div class="card-head">
+        <span class="card-icon" aria-hidden="true"></span>
+        <span class="pill">Ventas</span>
+      </div>
       <h2>Detalle de órdenes</h2>
       <p>Edita combinaciones de productos por pedido y descuentos.</p>
-      <span>Ventas</span>
+      <div class="card-footer">
+        <span>Gestionar</span>
+        <span aria-hidden="true">→</span>
+      </div>
     </a>
-    <a class="card" href="./customers.html">
+    <a class="card" data-tone="crm" href="./customers.html">
+      <div class="card-head">
+        <span class="card-icon" aria-hidden="true"></span>
+        <span class="pill">CRM</span>
+      </div>
       <h2>Clientes</h2>
       <p>Directorio completo de empresas y contactos.</p>
-      <span>CRM</span>
+      <div class="card-footer">
+        <span>Gestionar</span>
+        <span aria-hidden="true">→</span>
+      </div>
     </a>
-    <a class="card" href="./suppliers.html">
+    <a class="card" data-tone="supply" href="./suppliers.html">
+      <div class="card-head">
+        <span class="card-icon" aria-hidden="true"></span>
+        <span class="pill">Compras</span>
+      </div>
       <h2>Proveedores</h2>
       <p>Mantén al día la red de abastecimiento y contactos.</p>
-      <span>Compras</span>
+      <div class="card-footer">
+        <span>Gestionar</span>
+        <span aria-hidden="true">→</span>
+      </div>
     </a>
-    <a class="card" href="./employees.html">
+    <a class="card" data-tone="people" href="./employees.html">
+      <div class="card-head">
+        <span class="card-icon" aria-hidden="true"></span>
+        <span class="pill">Talento</span>
+      </div>
       <h2>Empleados</h2>
       <p>Información del equipo, roles y jerarquías.</p>
-      <span>RRHH</span>
+      <div class="card-footer">
+        <span>Gestionar</span>
+        <span aria-hidden="true">→</span>
+      </div>
     </a>
-    <a class="card" href="./categories.html">
+    <a class="card" data-tone="catalog" href="./categories.html">
+      <div class="card-head">
+        <span class="card-icon" aria-hidden="true"></span>
+        <span class="pill">Catálogo</span>
+      </div>
       <h2>Categorías</h2>
       <p>Organiza el portafolio de productos y descripciones.</p>
-      <span>Catálogo</span>
+      <div class="card-footer">
+        <span>Gestionar</span>
+        <span aria-hidden="true">→</span>
+      </div>
     </a>
-    <a class="card" href="./shippers.html">
+    <a class="card" data-tone="log" href="./shippers.html">
+      <div class="card-head">
+        <span class="card-icon" aria-hidden="true"></span>
+        <span class="pill">Logística</span>
+      </div>
       <h2>Transportistas</h2>
       <p>Directorio logístico para coordinar envíos.</p>
-      <span>Logística</span>
+      <div class="card-footer">
+        <span>Gestionar</span>
+        <span aria-hidden="true">→</span>
+      </div>
     </a>
   </section>
+
 </body>
 </html>

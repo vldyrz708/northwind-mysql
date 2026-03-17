@@ -96,6 +96,19 @@ export const deleteRecord = async (tableKey, payload = {}) => {
   return { success: true };
 };
 
+export const getImageBlob = async (tableKey, columnName, pkPayload = {}) => {
+  const def = getDefinition(tableKey);
+  const allCols = [...(def.primaryKey || []), ...(def.columns || [])];
+  const col = allCols.find((c) => c.column === columnName && c.type === 'file');
+  if (!col) { return null; }
+  const { where, params } = buildPkClause(def, pkPayload);
+  const sql = `SELECT \`${columnName}\` FROM \`${def.table}\` WHERE ${where} LIMIT 1`;
+  const rows = await execute(sql, params);
+  const value = rows[0]?.[columnName];
+  if (!value) { return null; }
+  return Buffer.isBuffer(value) ? value : Buffer.from(value);
+};
+
 export const getForeignOptions = async (tableKey) => {
   const def = getDefinition(tableKey);
   const fkMap = {};

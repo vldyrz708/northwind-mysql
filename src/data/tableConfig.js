@@ -90,7 +90,7 @@ const tableConfig = {
       { column: 'Photo', label: 'Foto', type: 'file', accept: 'image/*' },
       { column: 'Notes', label: 'Notas', type: 'text' },
       { column: 'ReportsTo', label: 'Reporta a', type: 'number', foreignKey: { tableKey: 'employees', value: 'EmployeeID', label: 'LastName' } },
-      { column: 'PhotoPath', label: 'Ruta de foto', type: 'string' }
+      { column: 'PhotoPath', label: 'Ruta de foto', type: 'image-path' }
     ]
   },
   orders: {
@@ -148,7 +148,7 @@ const tableConfig = {
     ]
   },
   employee_territories: {
-    table: 'employee_territories',
+    table: 'employeeterritories',
     label: 'Zonas por empleado',
     primaryKey: [
       { column: 'EmployeeID', type: 'number' },
@@ -179,6 +179,54 @@ const tableConfig = {
     foreignKeyDefaults: {
       CustomerID: { tableKey: 'customers', value: 'CustomerID', label: 'CompanyName' },
       CustomerTypeID: { tableKey: 'customerdemographics', value: 'CustomerTypeID', label: 'CustomerTypeID' }
+    }
+  },
+
+  // ── Inventory / Business operations ─────────────────────────────────────
+  stock_movements: {
+    table: 'stock_movements',
+    label: 'Movimientos de inventario',
+    primaryKey: [{ column: 'MovementID', type: 'number', auto: true }],
+    columns: [
+      { column: 'ProductID',    label: 'Producto',     type: 'number', required: true,
+        foreignKey: { tableKey: 'products', value: 'ProductID', label: 'ProductName' } },
+      { column: 'Quantity',     label: 'Cantidad',     type: 'number', required: true },
+      { column: 'MovementType', label: 'Tipo',         type: 'string', required: true },
+      { column: 'Reason',       label: 'Motivo',       type: 'string' },
+      { column: 'ReferenceID',  label: 'Referencia',   type: 'number' },
+      { column: 'EmployeeID',   label: 'Empleado',     type: 'number',
+        foreignKey: { tableKey: 'employees', value: 'EmployeeID', label: 'LastName' } },
+      { column: 'CreatedAt',    label: 'Fecha',        type: 'date' }
+    ]
+  },
+
+  purchase_requests: {
+    table: 'purchase_requests',
+    label: 'Solicitudes de compra',
+    primaryKey: [{ column: 'RequestID', type: 'number', auto: true }],
+    columns: [
+      { column: 'SupplierID',  label: 'Proveedor',  type: 'number', required: true,
+        foreignKey: { tableKey: 'suppliers', value: 'SupplierID', label: 'CompanyName' } },
+      { column: 'EmployeeID', label: 'Empleado',   type: 'number',
+        foreignKey: { tableKey: 'employees', value: 'EmployeeID', label: 'LastName' } },
+      { column: 'RequestDate', label: 'Fecha',      type: 'date' },
+      { column: 'Status',     label: 'Estado',     type: 'string', required: true },
+      { column: 'Notes',      label: 'Notas',      type: 'text' }
+    ]
+  },
+
+  purchase_request_details: {
+    table: 'purchase_request_details',
+    label: 'Detalle de solicitud de compra',
+    primaryKey: [{ column: 'RequestDetailID', type: 'number', auto: true }],
+    columns: [
+      { column: 'Quantity',  label: 'Cantidad',     type: 'number', required: true },
+      { column: 'UnitPrice', label: 'Precio estimado', type: 'number' },
+      { column: 'Notes',     label: 'Notas',        type: 'string' }
+    ],
+    foreignKeyDefaults: {
+      RequestID:  { tableKey: 'purchase_requests', value: 'RequestID', label: 'RequestID' },
+      ProductID:  { tableKey: 'products', value: 'ProductID', label: 'ProductName' }
     }
   }
 };

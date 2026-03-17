@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Northwind · Solicitudes de compra</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <style>
+    .pr-layout { display: grid; grid-template-columns: 1fr 440px; gap: 1.5rem; padding: 1.5rem; align-items: start; }
+    @media (max-width: 900px) { .pr-layout { grid-template-columns: 1fr; } }
+    .pr-row td { font-size: .85rem; padding: .4rem .55rem; vertical-align: middle; }
+    .pr-row:hover td { background: var(--surface-2, #1e293b); cursor: pointer; }
+    .pr-row.selected td { background: rgba(56,189,248,.1); }
+    .item-row { display: grid; grid-template-columns: 1fr 55px 80px 1fr 26px; gap: .35rem; align-items: end; margin-bottom: .4rem; }
+    .item-row .field { margin: 0; }
+    .detail-header { font-weight:700;font-size:.8rem;color:var(--muted,#94a3b8);text-transform:uppercase;letter-spacing:.05em;margin-top:1rem;margin-bottom:.3rem; }
+    .status-btns { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.5rem; }
+    .status-btns button { padding:.35rem .75rem; font-size:.82rem; border-radius:0.65rem; border:1px solid var(--border,#334155); background:transparent; cursor:pointer; color:var(--text,#f8fafc); transition: border-color .2s, color .2s; min-height: 40px; }
+    .status-btns button:hover { border-color:var(--accent,#f97316); color:var(--accent,#f97316); }
+    .items-hdr { display:grid; grid-template-columns:1fr 55px 80px 1fr 26px; gap:.35rem; font-size:.73rem; color:var(--muted); padding:0 2px; margin-bottom:.2rem; }
+    @media (max-width: 540px) {
+      .item-row, .items-hdr { grid-template-columns: 1fr 45px 70px 1fr 26px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ── Navigation ── -->
+  <nav class="top-nav">
+    <a class="brand" href="./index.html" aria-label="Ir al panel principal">
+      <span class="brand-mark" aria-hidden="true">NW</span>
+      <div class="brand-copy"><strong>Northwind Ops</strong><small>Control Room</small></div>
+    </a>
+    <div class="nav-links">
+      <a href="./studio.html">Ops Studio</a>
+      <details class="nav-menu">
+        <summary>Módulos</summary>
+        <div class="nav-menu__panel">
+          <div class="nav-menu__group" data-group="operaciones">
+            <span>Operaciones</span>
+            <a href="./inventory.html">Inventario</a>
+            <a href="./sales.html">Ventas</a>
+            <a href="./purchase-requests.html">Solicitudes de compra</a>
+          </div>
+          <div class="nav-menu__group" data-group="catalogo">
+            <span>Catálogo</span>
+            <a href="./products.html">Productos</a>
+            <a href="./categories.html">Categorías</a>
+          </div>
+          <div class="nav-menu__group" data-group="transacciones">
+            <span>Transacciones</span>
+            <a href="./orders.html">Órdenes</a>
+            <a href="./order-details.html">Detalle de órdenes</a>
+          </div>
+          <div class="nav-menu__group" data-group="relaciones">
+            <span>Relaciones</span>
+            <a href="./customers.html">Clientes</a>
+            <a href="./suppliers.html">Proveedores</a>
+          </div>
+          <div class="nav-menu__group" data-group="talento">
+            <span>Talento &amp; logística</span>
+            <a href="./employees.html">Empleados</a>
+            <a href="./shippers.html">Transportistas</a>
+          </div>
+        </div>
+      </details>
+      <a href="./purchase-requests.html">Compras</a>
+      <a class="nav-cta" href="https://github.com/vldyrz708/northwind-mysql" target="_blank" rel="noreferrer">GitHub</a>
+    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+  </nav>
+  <div class="nav-categories" aria-label="Accesos rápidos">
+    <a href="./studio.html" data-tone="ops">Multi-tabla</a>
+    <a href="./inventory.html" data-tone="ops">Inventario</a>
+    <a href="./sales.html" data-tone="sales">Ventas</a>
+    <a href="./purchase-requests.html" data-tone="supply" aria-current="page">Compras</a>
+    <a href="./products.html" data-tone="catalog">Productos</a>
+    <a href="./categories.html" data-tone="catalog">Categorías</a>
+    <a href="./orders.html" data-tone="sales">Órdenes</a>
+    <a href="./customers.html" data-tone="crm">Clientes</a>
+    <a href="./suppliers.html" data-tone="supply">Proveedores</a>
+    <a href="./employees.html" data-tone="people">Talento</a>
+    <a href="./shippers.html" data-tone="log">Logística</a>
+  </div>
+
+  <!-- ── Hero ── -->
+  <header class="hero hero--detail">
+    <div class="hero__content">
+      <a class="back-link" href="./index.html">⟵ Volver al panel</a>
+      <p class="eyebrow">Operaciones</p>
+      <h1>Solicitudes de compra</h1>
+      <p>Gestiona solicitudes de reabastecimiento. Al marcar como <em>Recibida</em> el inventario se actualiza automáticamente.</p>
+    </div>
+    <div class="hero-meta hero-meta--compact">
+      <article class="stat-card"><span>Módulo</span><strong>Compras</strong><small>Solicitudes a proveedores</small></article>
+      <article class="stat-card"><span>PDF</span><strong>Solicitud de compra</strong><small>Descarga instantánea</small></article>
+    </div>
+  </header>
+
+  <div class="pr-layout">
+
+    <!-- ── Requests list ── -->
+    <section class="panel">
+      <header class="panel-header">
+        <div><p class="eyebrow">Registro</p><h2>Solicitudes de compra</h2></div>
+        <button class="btn-accent" id="newPrBtn">+ Nueva solicitud</button>
+      </header>
+      <div class="controls">
+        <label class="field">
+          <span class="field-title">Página</span>
+          <input type="number" id="prPage" value="1" min="1" style="width:5rem" />
+        </label>
+        <button class="btn-ghost" id="prReload">Actualizar</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Proveedor</th><th>Empleado</th><th>Fecha</th>
+              <th>Artículos</th><th>Estado</th><th>PDF</th><th class="col-actions">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="prBody"></tbody>
+        </table>
+      </div>
+      <div id="prStats" class="grid-stats"></div>
+    </section>
+
+    <!-- ── Right panel ── -->
+    <aside id="prRightPanel">
+
+      <!-- Detail (default) -->
+      <section class="panel" id="prDetailPanel">
+        <header class="panel-header">
+          <div><p class="eyebrow">Detalle</p><h2 id="prDetailTitle">Solicitud seleccionada</h2></div>
+          <a id="prPdfBtn" class="pdf-badge" target="_blank" style="display:none">📄 PDF</a>
+        </header>
+        <div id="prDetailBody" style="padding:1rem;font-size:.88rem;color:var(--muted)">
+          Selecciona una solicitud para ver su detalle.
+        </div>
+      </section>
+
+      <!-- New request form -->
+      <section class="panel" id="newPrPanel" style="display:none">
+        <header class="panel-header">
+          <div><p class="eyebrow">Nueva solicitud</p><h2>Crear solicitud de compra</h2></div>
+          <button class="btn-ghost btn-sm" id="cancelPrBtn">✕ Cancelar</button>
+        </header>
+        <form id="prForm" style="padding:1rem">
+          <div class="form-grid">
+            <label class="field">
+              <span class="field-title">Proveedor <span class="required">*</span></span>
+              <select id="prSupplier" required>
+                <option value="">— seleccionar —</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-title">Solicitante</span>
+              <select id="prEmployee">
+                <option value="">— ninguno —</option>
+              </select>
+            </label>
+            <label class="field" style="grid-column:1/-1">
+              <span class="field-title">Observaciones generales</span>
+              <textarea id="prNotes" rows="2" placeholder="Motivo, urgencia, instrucciones…"></textarea>
+            </label>
+          </div>
+
+          <!-- Items -->
+          <div style="margin-top:1rem;border-top:1px solid var(--border,#334155);padding-top:.75rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+              <strong style="font-size:.9rem">Productos</strong>
+              <button type="button" class="btn-ghost btn-sm" id="addPrItemBtn">+ Agregar</button>
+            </div>
+            <div class="items-hdr">
+              <span>Producto</span><span>Cant.</span><span>Precio est.</span><span>Notas</span><span></span>
+            </div>
+            <div id="prItems"></div>
+          </div>
+
+          <div class="actions" style="margin-top:1rem">
+            <button type="submit" class="btn-accent" id="prSubmitBtn" disabled>Crear solicitud</button>
+          </div>
+          <div id="prMsg" style="margin-top:.5rem;font-size:.88rem"></div>
+        </form>
+      </section>
+
+    </aside>
+  </div>
+
+  <script type="module">
+    const API = '/api';
+    const $ = (id) => document.getElementById(id);
+    const fmtDate  = (d) => d ? String(d).split('T')[0] : '—';
+    const fmtMoney = (n) => n != null ? `$${Number(n).toFixed(2)}` : '—';
+
+    const badgeMap = {
+      pending:   '<span class="badge badge-pending">Pendiente</span>',
+      sent:      '<span class="badge badge-sent">Enviada</span>',
+      received:  '<span class="badge badge-received">Recibida</span>',
+      cancelled: '<span class="badge badge-cancelled">Cancelada</span>',
+    };
+
+    // ── Dropdowns ─────────────────────────────────────────────────────────────
+    let productCache = [];
+
+    const loadDropdowns = async () => {
+      const [supsRes, empsRes, prods] = await Promise.all([
+        fetch(`${API}/suppliers?pageSize=200`).then(r => r.json()),
+        fetch(`${API}/employees?pageSize=200`).then(r => r.json()),
+        fetch(`${API}/inventory/stock?pageSize=300`).then(r => r.json()),
+      ]);
+      productCache = prods.data || [];
+      const sups = (supsRes.data || []).map(s => ({
+        value: s.SupplierID,
+        label: s.CompanyName || `Proveedor #${s.SupplierID}`
+      }));
+      const emps = (empsRes.data || []).map(e => ({
+        value: e.EmployeeID,
+        label: `${e.FirstName || ''} ${e.LastName || ''}`.trim() || `Empleado #${e.EmployeeID}`
+      }));
+      fillSelect('prSupplier', sups, '— seleccionar —');
+      fillSelect('prEmployee', emps, '— ninguno —');
+    };
+
+    const fillSelect = (id, opts, placeholder) => {
+      const sel = $(id);
+      sel.innerHTML = `<option value="">${placeholder}</option>`;
+      (Array.isArray(opts) ? opts : []).forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.value ?? o;
+        opt.textContent = o.label ?? o;
+        sel.appendChild(opt);
+      });
+    };
+
+    // ── Requests list ─────────────────────────────────────────────────────────
+    const loadRequests = async () => {
+      const page = $('prPage').value;
+      const res  = await fetch(`${API}/purchase-requests?page=${page}&pageSize=15`);
+      const data = await res.json();
+      const tbody = $('prBody');
+      tbody.innerHTML = '';
+      (data.data || []).forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = 'pr-row';
+        tr.dataset.id = r.RequestID;
+        tr.innerHTML = `
+          <td>${r.RequestID}</td>
+          <td>${r.SupplierName || r.SupplierID}</td>
+          <td>${r.EmployeeName || '—'}</td>
+          <td>${fmtDate(r.RequestDate)}</td>
+          <td>${r.ItemCount || 0}</td>
+          <td>${badgeMap[r.Status] || r.Status}</td>
+          <td><a class="pdf-badge" href="/api/pdf/purchase-request/${r.RequestID}" target="_blank">📄 PDF</a></td>
+          <td class="row-actions"><button class="btn-row btn-row-view" title="Ver detalle">🔍</button></td>
+        `;
+        tr.querySelector('.btn-row-view').addEventListener('click', () => {
+          loadPrDetail(r.RequestID);
+          tbody.querySelectorAll('.pr-row').forEach(x => x.classList.remove('selected'));
+          tr.classList.add('selected');
+        });
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('.pdf-badge') || e.target.closest('.btn-row-view')) return;
+          loadPrDetail(r.RequestID);
+          tbody.querySelectorAll('.pr-row').forEach(x => x.classList.remove('selected'));
+          tr.classList.add('selected');
+        });
+        tbody.appendChild(tr);
+      });
+      $('prStats').textContent = `Mostrando ${(data.data||[]).length} de ${data.total} solicitudes · Página ${data.page}`;
+    };
+
+    // ── Request detail ────────────────────────────────────────────────────────
+    const loadPrDetail = async (requestId) => {
+      showDetail();
+      $('prDetailTitle').textContent = `Solicitud #${requestId}`;
+      $('prDetailBody').innerHTML = '<p style="color:var(--muted)">Cargando…</p>';
+      const res = await fetch(`${API}/purchase-requests/${requestId}`);
+      if (!res.ok) { $('prDetailBody').innerHTML = '<p style="color:#dc2626">Error al cargar.</p>'; return; }
+      const r = await res.json();
+
+      $('prPdfBtn').href = `/api/pdf/purchase-request/${requestId}`;
+      $('prPdfBtn').style.display = 'inline';
+
+      const rows = (r.items || []).map(i => `
+        <tr>
+          <td>${i.ProductName}</td>
+          <td style="text-align:right">${i.Quantity}</td>
+          <td style="text-align:right">${fmtMoney(i.UnitPrice)}</td>
+          <td>${i.Notes || '—'}</td>
+        </tr>
+      `).join('');
+
+      const NEXT = { pending: ['sent','cancelled'], sent: ['received','cancelled'], received: [], cancelled: [] };
+      const statusLabels = { sent: 'Enviar a proveedor', received: 'Marcar como recibida', cancelled: 'Cancelar solicitud' };
+      const statusActions = (NEXT[r.Status] || []).map(s => `<button data-status="${s}">${statusLabels[s] || s}</button>`).join('');
+
+      $('prDetailBody').innerHTML = `
+        <div class="detail-header">Información</div>
+        <p><b>Proveedor:</b> ${r.SupplierName || '—'}</p>
+        <p><b>Solicitante:</b> ${r.EmployeeName || '—'}</p>
+        <p><b>Fecha:</b> ${fmtDate(r.RequestDate)}</p>
+        <p><b>Estado:</b> ${badgeMap[r.Status] || r.Status}</p>
+        ${r.Notes ? `<p><b>Observaciones:</b> ${r.Notes}</p>` : ''}
+        ${statusActions ? `<div class="detail-header">Cambiar estado</div><div class="status-btns">${statusActions}</div>` : ''}
+        <div id="statusMsg" style="font-size:.85rem;margin-top:.4rem"></div>
+        <div class="detail-header">Productos</div>
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+          <thead><tr><th style="text-align:left">Producto</th><th>Cant.</th><th>Precio est.</th><th>Notas</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+
+      // Status change buttons
+      $('prDetailBody').querySelectorAll('[data-status]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const statusMsg = document.getElementById('statusMsg');
+          statusMsg.textContent = 'Actualizando…';
+          try {
+            const up = await fetch(`${API}/purchase-requests/${requestId}/status`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: btn.dataset.status }),
+            });
+            if (!up.ok) { const e = await up.json(); throw new Error(e.message); }
+            await loadRequests();
+            await loadPrDetail(requestId);
+          } catch (err) {
+            statusMsg.style.color = '#dc2626';
+            statusMsg.textContent = `✗ ${err.message}`;
+          }
+        });
+      });
+    };
+
+    // ── Panel toggling ────────────────────────────────────────────────────────
+    // ── PR form modal ─────────────────────────────────────────────────────────
+    let prFormModal = null;
+
+    const initPrModal = () => {
+      const panel = $('newPrPanel');
+      if (!panel) { return null; }
+      const h2 = panel.querySelector('h2');
+      if (h2 && !h2.id) { h2.id = 'pr-form-modal-title'; }
+      panel.style.display = '';
+      const overlay = document.createElement('div');
+      overlay.className = 'crud-modal-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-labelledby', h2?.id || '');
+      overlay.setAttribute('aria-hidden', 'true');
+      const box = document.createElement('div');
+      box.className = 'crud-modal-box';
+      box.style.maxWidth = '600px';
+      box.appendChild(panel);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) { showDetail(); } });
+      overlay.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { showDetail(); return; }
+        if (e.key === 'Tab') {
+          const focusable = [...box.querySelectorAll(
+            'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled])'
+          )];
+          if (!focusable.length) { return; }
+          const first = focusable[0]; const last = focusable[focusable.length - 1];
+          if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      });
+      return overlay;
+    };
+
+    const showDetail = () => { $('prDetailPanel').style.display = ''; $('newPrBtn').style.display = ''; if (prFormModal) { prFormModal.setAttribute('aria-hidden', 'true'); } };
+    const showForm   = () => { $('newPrBtn').style.display = 'none'; if (prFormModal) { prFormModal.setAttribute('aria-hidden', 'false'); setTimeout(() => { const first = prFormModal.querySelector('select:not([disabled]), input:not([disabled]):not([readonly])'); first?.focus(); }, 80); } };
+    $('newPrBtn').addEventListener('click', () => { showForm(); resetPrForm(); });
+    $('cancelPrBtn').addEventListener('click', showDetail);
+
+    // ── Item rows ─────────────────────────────────────────────────────────────
+    let prItemCount = 0;
+
+    const addPrItemRow = () => {
+      prItemCount++;
+      const id = prItemCount;
+      const opts = productCache.map(p =>
+        `<option value="${p.ProductID}" data-price="${p.UnitPrice}">${p.ProductName}</option>`
+      ).join('');
+      const div = document.createElement('div');
+      div.className = 'item-row';
+      div.id = `pritem-${id}`;
+      div.innerHTML = `
+        <select class="pritem-product"><option value="">— producto —</option>${opts}</select>
+        <input type="number" class="pritem-qty" min="1" value="1" />
+        <input type="number" class="pritem-price" step="0.01" placeholder="0.00" />
+        <input type="text" class="pritem-notes" placeholder="Notas…" />
+        <button type="button" class="btn-ghost btn-sm" title="Eliminar">✕</button>
+      `;
+      div.querySelector('.pritem-product').addEventListener('change', (e) => {
+        const opt = e.target.selectedOptions[0];
+        if (opt?.dataset?.price) div.querySelector('.pritem-price').value = opt.dataset.price;
+        updatePrSubmit();
+      });
+      div.querySelector('.pritem-qty').addEventListener('input', updatePrSubmit);
+      div.querySelector('button').addEventListener('click', () => { div.remove(); updatePrSubmit(); });
+      $('prItems').appendChild(div);
+    };
+
+    const resetPrForm = () => {
+      $('prForm').reset();
+      $('prItems').innerHTML = '';
+      prItemCount = 0;
+      $('prMsg').textContent = '';
+      addPrItemRow();
+      updatePrSubmit();
+    };
+
+    // ── Submit button state ───────────────────────────────────────────────────
+    const updatePrSubmit = () => {
+      const hasSupplier = !!$('prSupplier').value;
+      const rows = [...document.querySelectorAll('#prItems .item-row')];
+      const hasValidItem = rows.some(row => {
+        const product = row.querySelector('.pritem-product').value;
+        const qty     = Number(row.querySelector('.pritem-qty').value);
+        return product && qty > 0;
+      });
+      const btn = $('prSubmitBtn');
+      btn.disabled = !(hasSupplier && hasValidItem);
+      btn.title = !hasSupplier
+        ? 'Selecciona un proveedor primero'
+        : !hasValidItem ? 'Agrega al menos un producto con cantidad válida'
+        : '';
+    };
+
+    $('prSupplier').addEventListener('change', updatePrSubmit);
+    $('addPrItemBtn').addEventListener('click', () => { addPrItemRow(); updatePrSubmit(); });
+
+    // ── Form submit ───────────────────────────────────────────────────────────
+    $('prForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msgEl = $('prMsg');
+      msgEl.textContent = '';
+
+      const items = [...document.querySelectorAll('#prItems .item-row')].map(row => ({
+        ProductID: Number(row.querySelector('.pritem-product').value),
+        Quantity:  Number(row.querySelector('.pritem-qty').value),
+        UnitPrice: row.querySelector('.pritem-price').value ? Number(row.querySelector('.pritem-price').value) : null,
+        Notes:     row.querySelector('.pritem-notes').value || null,
+      })).filter(i => i.ProductID && i.Quantity > 0);
+
+      if (!items.length) { msgEl.style.color='#dc2626'; msgEl.textContent='Agrega al menos un producto.'; return; }
+
+      const payload = {
+        SupplierID: Number($('prSupplier').value),
+        EmployeeID: $('prEmployee').value ? Number($('prEmployee').value) : null,
+        Notes:      $('prNotes').value || null,
+        items,
+      };
+
+      try {
+        const res = await fetch(`${API}/purchase-requests`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.message || 'Error al crear solicitud');
+        msgEl.style.color = '#059669';
+        msgEl.textContent = `✓ Solicitud #${body.RequestID} creada.`;
+        await loadRequests();
+        setTimeout(() => { showDetail(); loadPrDetail(body.RequestID); }, 1200);
+      } catch (err) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = `✗ ${err.message}`;
+      }
+    });
+
+    // ── Pagination ────────────────────────────────────────────────────────────
+    $('prReload').addEventListener('click', loadRequests);
+    $('prPage').addEventListener('change', loadRequests);
+
+    // ── Boot ──────────────────────────────────────────────────────────────────
+    prFormModal = initPrModal();
+    await Promise.all([loadDropdowns(), loadRequests()]);
+  </script>
+</body>
+</html>

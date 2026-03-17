@@ -8,6 +8,78 @@ const defaultSettings = {
   heroSubtitle: null
 };
 
+/* ── Toast notification system ─────────────────────────────────────────── */
+function initToastContainer() {
+  if (document.getElementById('toast-container')) { return; }
+  const el = document.createElement('div');
+  el.id = 'toast-container';
+  el.setAttribute('aria-live', 'polite');
+  el.setAttribute('aria-atomic', 'false');
+  document.body.appendChild(el);
+}
+
+function showToast(message, type = 'info', durationMs = 3800) {
+  initToastContainer();
+  const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast toast--${type}`;
+  toast.setAttribute('role', 'alert');
+  toast.innerHTML = `<span class="toast-icon" aria-hidden="true">${icons[type] ?? 'ℹ'}</span><span class="toast-msg">${message}</span>`;
+  container.appendChild(toast);
+  const remove = () => {
+    toast.classList.add('toast-out');
+    toast.addEventListener('animationend', () => toast.remove(), { once: true });
+  };
+  const timer = setTimeout(remove, durationMs);
+  toast.addEventListener('click', () => { clearTimeout(timer); remove(); });
+}
+
+/* ── Custom confirm dialog ─────────────────────────────────────────────── */
+function showConfirm(message, onConfirm) {
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <div class="confirm-box__icon" aria-hidden="true">🗑️</div>
+      <p class="confirm-box__title" id="confirm-title">¿Confirmar acción?</p>
+      <p class="confirm-box__msg">${message}</p>
+      <div class="confirm-box__actions">
+        <button class="btn-ghost" id="confirm-cancel">Cancelar</button>
+        <button class="btn-accent" id="confirm-ok" style="background:linear-gradient(135deg,#f87171,#dc2626);color:#fff">Eliminar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const cancel = overlay.querySelector('#confirm-cancel');
+  const ok = overlay.querySelector('#confirm-ok');
+  ok.focus();
+  cancel.addEventListener('click', () => overlay.remove());
+  ok.addEventListener('click', () => { overlay.remove(); onConfirm(); });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); } });
+  overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { overlay.remove(); } });
+}
+
+/* ── Mobile nav toggle ─────────────────────────────────────────────────── */
+function initMobileNav() {
+  const toggle = document.querySelector('.nav-toggle');
+  const nav = document.querySelector('.top-nav');
+  if (!toggle || !nav) { return; }
+  toggle.addEventListener('click', () => {
+    const open = nav.classList.toggle('nav-open');
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.textContent = open ? '✕' : '☰';
+  });
+  document.addEventListener('click', (e) => {
+    if (nav.classList.contains('nav-open') && !nav.contains(e.target)) {
+      nav.classList.remove('nav-open');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.textContent = '☰';
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initMobileNav);
+
 export function initCrudPage(userSettings = {}) {
   const settings = { ...defaultSettings, ...userSettings };
   const state = {
@@ -46,6 +118,13 @@ export function initCrudPage(userSettings = {}) {
     throw new Error('initCrudPage: HTML inválido, faltan elementos base.');
   }
 
+  /* Apply ARIA live region to status element */
+  if (refs.status) {
+    refs.status.setAttribute('role', 'status');
+    refs.status.setAttribute('aria-live', 'polite');
+    refs.status.setAttribute('aria-atomic', 'true');
+  }
+
   const applyHeroText = () => {
     if (settings.heroTitle && refs.heroTitle) {
       refs.heroTitle.textContent = settings.heroTitle;
@@ -73,10 +152,13 @@ export function initCrudPage(userSettings = {}) {
     return res.json();
   };
 
-  const setStatus = (message, isError = false) => {
+  const setStatus = (message, type = 'idle') => {
     if (!refs.status) { return; }
     refs.status.textContent = message || '';
-    refs.status.style.color = isError ? '#f87171' : 'var(--muted)';
+    refs.status.className = 'status';
+    if (type === 'error') { refs.status.classList.add('status--error'); }
+    else if (type === 'success') { refs.status.classList.add('status--success'); }
+    else if (type === 'loading') { refs.status.classList.add('status--loading'); }
   };
 
   const filterMeta = (meta) => {
@@ -123,7 +205,8 @@ export function initCrudPage(userSettings = {}) {
       renderForm();
       await loadTable();
     } catch (error) {
-      setStatus(error.message, true);
+      setStatus(error.message, 'error');
+      showToast(error.message, 'error');
     }
   };
 
@@ -145,7 +228,7 @@ export function initCrudPage(userSettings = {}) {
   const loadTable = async () => {
     if (!state.currentTable) { return; }
     try {
-      setStatus('Cargando datos...');
+      setStatus('Cargando datos…', 'loading');
       const params = new URLSearchParams({
         page: state.page,
         pageSize: state.pageSize,
@@ -159,9 +242,10 @@ export function initCrudPage(userSettings = {}) {
       if (refs.search) { refs.search.value = state.search; }
       await ensureForeignOptions();
       renderTable();
-      setStatus(`Encontrados ${state.total} registros.`);
+      setStatus(`${state.total} registros encontrados.`, 'idle');
     } catch (error) {
-      setStatus(error.message, true);
+      setStatus(error.message, 'error');
+      showToast(error.message, 'error');
     }
   };
 
@@ -180,23 +264,73 @@ export function initCrudPage(userSettings = {}) {
     const def = state.meta[state.currentTable];
     if (!def || !refs.tableHead || !refs.tableBody) { return; }
     const columns = buildColumns(def);
-    refs.tableHead.innerHTML = '<tr>' + columns.map((col) => `<th>${col.label || col.column}</th>`).join('') + '</tr>';
+    refs.tableHead.innerHTML = '<tr>' + columns.map((col) => `<th>${col.label || col.column}</th>`).join('') + '<th class="col-actions">Acciones</th></tr>';
     refs.tableBody.innerHTML = '';
-    state.records.forEach((record) => {
-      const row = document.createElement('tr');
-      row.dataset.pk = JSON.stringify(extractPk(def, record));
-      row.innerHTML = columns.map((col) => `<td>${formatValue(col, record[col.column])}</td>`).join('');
-      row.addEventListener('click', () => {
-        Array.from(refs.tableBody.children).forEach((tr) => tr.classList.remove('active'));
-        row.classList.add('active');
-        fillForm(record);
+    if (!state.records.length) {
+      const colCount = columns.length + 1;
+      refs.tableBody.innerHTML = `<tr><td colspan="${colCount}">
+        <div class="empty-state">
+          <span class="empty-state__icon" aria-hidden="true">📋</span>
+          <span class="empty-state__title">Sin registros</span>
+          <span class="empty-state__sub">No se encontraron datos para esta búsqueda.</span>
+        </div>
+      </td></tr>`;
+    } else {
+      state.records.forEach((record) => {
+        const row = document.createElement('tr');
+        row.dataset.pk = JSON.stringify(extractPk(def, record));
+        row.innerHTML = columns.map((col) => `<td>${formatCell(col, record[col.column], record)}</td>`).join('');
+
+        const actionsCell = document.createElement('td');
+        actionsCell.className = 'row-actions';
+        actionsCell.innerHTML = `
+          <button class="btn-row btn-row-edit" title="Editar registro" aria-label="Editar registro">✏️</button>
+          <button class="btn-row btn-row-delete" title="Eliminar registro" aria-label="Eliminar registro">🗑️</button>
+        `;
+        row.appendChild(actionsCell);
+
+        actionsCell.querySelector('.btn-row-edit').addEventListener('click', (e) => {
+          e.stopPropagation();
+          Array.from(refs.tableBody.children).forEach((tr) => tr.classList.remove('active'));
+          row.classList.add('active');
+          fillForm(record);
+          modalLastFocus = actionsCell.querySelector('.btn-row-edit');
+          openRecordModal('edit');
+        });
+
+        actionsCell.querySelector('.btn-row-delete').addEventListener('click', (e) => {
+          e.stopPropagation();
+          showConfirm('Esta acción no se puede deshacer. ¿Deseas eliminar este registro?', async () => {
+            try {
+              setStatus('Eliminando…', 'loading');
+              const pk = JSON.parse(row.dataset.pk);
+              await fetchJSON(`${settings.apiBase}/${state.currentTable}`, { method: 'DELETE', body: pk });
+              await loadTable();
+              setStatus('Registro eliminado.', 'success');
+              showToast('Registro eliminado correctamente.', 'success');
+            } catch (error) {
+              setStatus(error.message, 'error');
+              showToast(error.message, 'error');
+            }
+          });
+        });
+
+        row.addEventListener('click', (e) => {
+          if (e.target.closest('.row-actions')) { return; }
+          Array.from(refs.tableBody.children).forEach((tr) => tr.classList.remove('active'));
+          row.classList.add('active');
+          fillForm(record);
+          modalLastFocus = row;
+          openRecordModal('edit');
+        });
+
+        refs.tableBody.appendChild(row);
       });
-      refs.tableBody.appendChild(row);
-    });
+    }
     const start = state.records.length ? ((state.page - 1) * state.pageSize) + 1 : 0;
     const end = start + state.records.length - 1;
     if (refs.gridStats) {
-      refs.gridStats.textContent = state.records.length ? `${start} - ${end} de ${state.total}` : 'Sin datos';
+      refs.gridStats.textContent = state.records.length ? `${start} – ${end} de ${state.total}` : 'Sin datos';
     }
   };
 
@@ -206,6 +340,54 @@ export function initCrudPage(userSettings = {}) {
     if (descriptor.type === 'date') { return value?.split('T')[0] || value; }
     if (descriptor.type === 'file') { return value ? '📎 Archivo' : '—'; }
     return value;
+  };
+
+  // Renders a table <td> value. File columns become clickable <img> thumbnails
+  // served by the dedicated image endpoint instead of rendering raw base64.
+  // 'image-path' columns render as <img> when a path or URL is stored.
+  const formatCell = (descriptor, value, record) => {
+    if (descriptor.type === 'file') {
+      if (!value) { return '—'; }
+      const def = state.meta[state.currentTable];
+      const pk = extractPk(def, record);
+      const pkParams = Object.entries(pk)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+      const url = `${settings.apiBase}/${state.currentTable}/image/${descriptor.column}?${pkParams}`;
+      return `<img class="img-thumb" src="${url}" alt="${descriptor.label || descriptor.column}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'img-thumb-err',textContent:'📷'}))">`;
+    }
+    if (descriptor.type === 'image-path') {
+      if (!value) { return '—'; }
+      const url = /^https?:\/\//.test(value) ? value : `/${value.replace(/^\//, '')}`;
+      return `<img class="img-thumb" src="${url}" alt="${descriptor.label || descriptor.column}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'img-thumb-err',textContent:'📷'}))">`;
+    }
+    return formatValue(descriptor, value);
+  };
+
+  // Opens a full-screen lightbox to enlarge an image src.
+  const openLightbox = (src) => {
+    if (!src) { return; }
+    const overlay = document.createElement('div');
+    overlay.className = 'img-lightbox';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Vista ampliada de imagen');
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = 'Vista ampliada';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'img-lightbox__close';
+    closeBtn.setAttribute('aria-label', 'Cerrar imagen');
+    closeBtn.type = 'button';
+    closeBtn.textContent = '✕';
+    const onKey = (e) => {
+      if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); }
+    };
+    closeBtn.addEventListener('click', () => { overlay.remove(); document.removeEventListener('keydown', onKey); });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); document.removeEventListener('keydown', onKey); } });
+    document.addEventListener('keydown', onKey);
+    overlay.append(img, closeBtn);
+    document.body.appendChild(overlay);
+    closeBtn.focus();
   };
 
   const extractPk = (def, record) => {
@@ -291,6 +473,15 @@ export function initCrudPage(userSettings = {}) {
     const container = document.createElement('div');
     container.className = 'file-field';
 
+    // Preview image shown when a record with an image is loaded for editing
+    // or immediately when a new file is selected.
+    const preview = document.createElement('img');
+    preview.className = 'img-preview';
+    preview.dataset.filePreview = column.column;
+    preview.alt = column.label || column.column;
+    preview.style.display = 'none';
+    preview.addEventListener('click', () => openLightbox(preview.src));
+
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = column.accept || 'image/*';
@@ -308,32 +499,36 @@ export function initCrudPage(userSettings = {}) {
 
     fileInput.addEventListener('change', async (event) => {
       const file = event.target.files?.[0];
-      await handleFileSelection(file, hidden, helper);
+      await handleFileSelection(file, hidden, helper, preview);
     });
 
-    container.append(fileInput, hidden, helper);
+    container.append(preview, fileInput, hidden, helper);
     return container;
   };
 
-  const handleFileSelection = (file, hiddenInput, helper) => new Promise((resolve) => {
+  const handleFileSelection = (file, hiddenInput, helper, preview) => new Promise((resolve) => {
     if (!file) {
       hiddenInput.value = '';
       helper.textContent = 'Sin archivo';
       helper.dataset.hasFile = 'false';
+      if (preview) { preview.src = ''; preview.style.display = 'none'; }
       return resolve();
     }
     const reader = new FileReader();
     reader.onload = () => {
-      const base64 = typeof reader.result === 'string' ? reader.result.split(',').pop() : '';
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      const base64 = result.split(',').pop();
       hiddenInput.value = base64 || '';
       helper.textContent = `${file.name} · ${formatBytes(file.size)}`;
       helper.dataset.hasFile = 'true';
+      if (preview) { preview.src = result; preview.style.display = ''; }
       resolve();
     };
     reader.onerror = () => {
       hiddenInput.value = '';
       helper.textContent = 'Error al leer archivo';
       helper.dataset.hasFile = 'false';
+      if (preview) { preview.src = ''; preview.style.display = 'none'; }
       resolve();
     };
     reader.readAsDataURL(file);
@@ -386,6 +581,7 @@ export function initCrudPage(userSettings = {}) {
       if (descriptor.type === 'file') {
         field.value = value || '';
         const helper = refs.formFields.querySelector(`[data-file-info="${descriptor.column}"]`);
+        const previewImg = refs.formFields.querySelector(`[data-file-preview="${descriptor.column}"]`);
         if (helper) {
           if (value) {
             helper.textContent = 'Archivo almacenado · usa "Cambiar" para reemplazar';
@@ -393,6 +589,18 @@ export function initCrudPage(userSettings = {}) {
           } else {
             helper.textContent = 'Sin archivo';
             helper.dataset.hasFile = 'false';
+          }
+        }
+        if (previewImg) {
+          if (value) {
+            const pk = extractPk(def, record);
+            const pkParams = Object.entries(pk)
+              .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+            previewImg.src = `${settings.apiBase}/${state.currentTable}/image/${descriptor.column}?${pkParams}`;
+            previewImg.style.display = '';
+          } else {
+            previewImg.src = '';
+            previewImg.style.display = 'none';
           }
         }
         return;
@@ -422,6 +630,10 @@ export function initCrudPage(userSettings = {}) {
       helper.textContent = 'Sin archivo';
       helper.dataset.hasFile = 'false';
     });
+    refs.formFields.querySelectorAll('[data-file-preview]').forEach((img) => {
+      img.src = '';
+      img.style.display = 'none';
+    });
     Array.from(refs.formFields.querySelectorAll('[name]')).forEach((field) => {
       if (field.type !== 'hidden') {
         field.disabled = field.placeholder === 'auto';
@@ -443,6 +655,128 @@ export function initCrudPage(userSettings = {}) {
     refs.deleteBtn.disabled = !enable;
     refs.deleteBtn.style.opacity = enable ? 1 : 0.4;
   };
+
+  /* ── Record modal (overlay for add / edit) ──────────────────────────────── */
+  let recordModal = null;
+  let modalLastFocus = null;
+
+  const trapFocusInModal = (e, container) => {
+    const focusable = [...container.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )];
+    if (!focusable.length) { return; }
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+
+  const openRecordModal = (mode = 'create') => {
+    if (!recordModal) { return; }
+    const titleEl = recordModal.querySelector('.crud-modal-title');
+    if (titleEl) { titleEl.textContent = mode === 'edit' ? 'Editar registro' : 'Nuevo registro'; }
+    recordModal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => {
+      const first = recordModal.querySelector(
+        'input:not([disabled]):not([placeholder="auto"]), select:not([disabled]), textarea:not([disabled])'
+      );
+      first?.focus();
+    }, 80);
+  };
+
+  const closeRecordModal = () => {
+    if (!recordModal) { return; }
+    recordModal.setAttribute('aria-hidden', 'true');
+    clearForm();
+    modalLastFocus?.focus?.();
+  };
+
+  const initRecordModal = () => {
+    const formSection = refs.recordForm?.closest('section');
+    if (!formSection) { return; }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'crud-modal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'crud-modal-title');
+    overlay.setAttribute('aria-hidden', 'true');
+
+    const box = document.createElement('div');
+    box.className = 'crud-modal-box';
+
+    const mHead = document.createElement('header');
+    mHead.className = 'crud-modal-header';
+
+    const titleWrap = document.createElement('div');
+    const eyebrow = document.createElement('p');
+    eyebrow.className = 'eyebrow';
+    eyebrow.style.cssText = 'margin:0;font-size:.72rem;color:var(--muted)';
+    eyebrow.textContent = 'Formulario';
+    const titleEl = document.createElement('h2');
+    titleEl.className = 'crud-modal-title';
+    titleEl.id = 'crud-modal-title';
+    titleEl.style.margin = '0';
+    titleEl.textContent = 'Nuevo registro';
+    titleWrap.appendChild(eyebrow);
+    titleWrap.appendChild(titleEl);
+
+    const headerActions = document.createElement('div');
+    headerActions.style.cssText = 'display:flex;align-items:center;gap:.6rem';
+    if (refs.formMode) {
+      refs.formMode.style.cssText = 'font-size:.8rem;color:var(--accent)';
+      headerActions.appendChild(refs.formMode);
+    }
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'crud-modal-close';
+    closeBtn.setAttribute('aria-label', 'Cerrar formulario');
+    closeBtn.type = 'button';
+    closeBtn.textContent = '\u2715';
+    headerActions.appendChild(closeBtn);
+
+    mHead.appendChild(titleWrap);
+    mHead.appendChild(headerActions);
+
+    const mBody = document.createElement('div');
+    mBody.className = 'crud-modal-body';
+    mBody.appendChild(refs.recordForm);
+
+    box.appendChild(mHead);
+    box.appendChild(mBody);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    // Remove now-empty form section; collapse layout to single column
+    formSection.remove();
+    const layout = document.querySelector('main.crud-layout');
+    if (layout) { layout.style.gridTemplateColumns = '1fr'; }
+
+    // Inject "+ Nuevo" button into the table panel's action bar
+    const tableActions = document.querySelector('main.crud-layout .panel .actions');
+    if (tableActions) {
+      const addBtn = document.createElement('button');
+      addBtn.className = 'btn-accent';
+      addBtn.id = 'addRecordBtn';
+      addBtn.textContent = '+ Nuevo';
+      tableActions.prepend(addBtn);
+      addBtn.addEventListener('click', () => {
+        modalLastFocus = addBtn;
+        clearForm();
+        openRecordModal('create');
+      });
+    }
+
+    closeBtn.addEventListener('click', closeRecordModal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) { closeRecordModal(); } });
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { closeRecordModal(); return; }
+      if (e.key === 'Tab') { trapFocusInModal(e, box); }
+    });
+
+    recordModal = overlay;
+  };
+
+  initRecordModal();
 
   const gatherPayload = () => {
     const payload = {};
@@ -467,40 +801,62 @@ export function initCrudPage(userSettings = {}) {
     if (!state.currentTable) { return; }
     const payload = gatherPayload();
     const mode = refs.recordForm.dataset.mode || 'create';
+    const submitBtn = refs.recordForm.querySelector('[type=submit]');
+    const originalText = submitBtn?.textContent;
     try {
-      setStatus(mode === 'edit' ? 'Actualizando...' : 'Creando...');
+      if (submitBtn) { submitBtn.dataset.loading = '1'; submitBtn.textContent = mode === 'edit' ? 'Actualizando…' : 'Guardando…'; }
+      setStatus(mode === 'edit' ? 'Actualizando…' : 'Creando…', 'loading');
       if (mode === 'edit') {
         await fetchJSON(`${settings.apiBase}/${state.currentTable}`, { method: 'PUT', body: payload });
       } else {
         await fetchJSON(`${settings.apiBase}/${state.currentTable}`, { method: 'POST', body: payload });
       }
       await loadTable();
-      clearForm();
-      setStatus('Cambios guardados');
+      closeRecordModal();
+      const msg = mode === 'edit' ? 'Registro actualizado correctamente.' : 'Registro creado correctamente.';
+      setStatus(msg, 'success');
+      showToast(msg, 'success');
     } catch (error) {
-      setStatus(error.message, true);
+      setStatus(error.message, 'error');
+      showToast(error.message, 'error');
+    } finally {
+      if (submitBtn) { delete submitBtn.dataset.loading; submitBtn.textContent = originalText; }
     }
   });
 
   if (refs.deleteBtn) {
-    refs.deleteBtn.addEventListener('click', async () => {
+    refs.deleteBtn.addEventListener('click', () => {
       if (!refs.recordForm.dataset.pk) { return; }
-      if (!confirm('¿Eliminar registro seleccionado?')) { return; }
-      try {
-        const payload = JSON.parse(refs.recordForm.dataset.pk);
-        setStatus('Eliminando...');
-        await fetchJSON(`${settings.apiBase}/${state.currentTable}`, { method: 'DELETE', body: payload });
-        await loadTable();
-        clearForm();
-        setStatus('Registro eliminado');
-      } catch (error) {
-        setStatus(error.message, true);
-      }
+      showConfirm('Esta acción no se puede deshacer. ¿Deseas eliminar este registro?', async () => {
+        const deleteBtn = refs.deleteBtn;
+        const originalText = deleteBtn.textContent;
+        try {
+          const payload = JSON.parse(refs.recordForm.dataset.pk);
+          deleteBtn.dataset.loading = '1';
+          deleteBtn.textContent = 'Eliminando…';
+          setStatus('Eliminando…', 'loading');
+          await fetchJSON(`${settings.apiBase}/${state.currentTable}`, { method: 'DELETE', body: payload });
+          await loadTable();
+          closeRecordModal();
+          setStatus('Registro eliminado.', 'success');
+          showToast('Registro eliminado correctamente.', 'success');
+        } catch (error) {
+          setStatus(error.message, 'error');
+          showToast(error.message, 'error');
+        } finally {
+          delete deleteBtn.dataset.loading;
+          deleteBtn.textContent = originalText;
+        }
+      });
     });
   }
 
-  refs.newBtn?.addEventListener('click', clearForm);
-  refs.clearSelectionBtn?.addEventListener('click', clearForm);
+  refs.newBtn?.addEventListener('click', () => {
+    clearForm();
+    const titleEl = recordModal?.querySelector('.crud-modal-title');
+    if (titleEl) { titleEl.textContent = 'Nuevo registro'; }
+  });
+  refs.clearSelectionBtn?.addEventListener('click', closeRecordModal);
 
   refs.reloadBtn?.addEventListener('click', () => {
     state.page = Number(refs.page.value) || 1;

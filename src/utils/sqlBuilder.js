@@ -111,9 +111,16 @@ export const buildPkClause = (def, payload) => {
 };
 
 export const buildListQuery = (def, { page = 1, pageSize = 25, search } = {}) => {
+  // File/BLOB columns are excluded from list queries for performance.
+  // They are replaced with a boolean existence flag (1 or 0).
   const columns = [
     ...def.primaryKey.map((pk) => pk.column),
-    ...(def.columns || []).map((col) => col.column)
+    ...(def.columns || []).map((col) => {
+      if (col.type === 'file') {
+        return `IF(\`${col.column}\` IS NOT NULL AND LENGTH(\`${col.column}\`) > 0, 1, 0) AS \`${col.column}\``;
+      }
+      return col.column;
+    })
   ];
   const select = `SELECT ${columns.join(', ')} FROM ${def.table}`;
   const baseParams = {};

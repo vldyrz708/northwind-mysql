@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -7,28 +7,111 @@
   <link rel="stylesheet" href="./assets/styles.css" />
 </head>
 <body>
-  <header class="hero">
-    <a class="back-link" href="./index.html">⟵ Volver al panel</a>
-    <h1 data-hero-title>Directorio de clientes</h1>
-    <p data-hero-subtitle>Actualiza datos de contacto, direcciones y segmentos para cada cliente corporativo del catálogo.</p>
+  <nav class="top-nav">
+    <a class="brand" href="./index.html" aria-label="Ir al panel principal">
+      <span class="brand-mark" aria-hidden="true">NW</span>
+      <div class="brand-copy">
+        <strong>Northwind Ops</strong>
+        <small>Control Room</small>
+      </div>
+    </a>
+    <div class="nav-links">
+      <a href="./studio.html">Ops Studio</a>
+      <details class="nav-menu">
+        <summary>Módulos</summary>
+        <div class="nav-menu__panel">
+          <div class="nav-menu__group" data-group="operaciones">
+            <span>Operaciones</span>
+            <a href="./inventory.html">Inventario</a>
+            <a href="./sales.html">Ventas</a>
+            <a href="./purchase-requests.html">Solicitudes de compra</a>
+          </div>
+          <div class="nav-menu__group" data-group="catalogo">
+            <span>Catálogo</span>
+            <a href="./products.html">Productos</a>
+            <a href="./categories.html">Categorías</a>
+          </div>
+          <div class="nav-menu__group" data-group="transacciones">
+            <span>Transacciones</span>
+            <a href="./orders.html">Órdenes</a>
+            <a href="./order-details.html">Detalle de órdenes</a>
+          </div>
+          <div class="nav-menu__group" data-group="relaciones">
+            <span>Relaciones</span>
+            <a href="./customers.html">Clientes</a>
+            <a href="./suppliers.html">Proveedores</a>
+          </div>
+          <div class="nav-menu__group" data-group="talento">
+            <span>Talento &amp; logística</span>
+            <a href="./employees.html">Empleados</a>
+            <a href="./shippers.html">Transportistas</a>
+          </div>
+        </div>
+      </details>
+      <a href="./orders.html">Órdenes</a>
+      <a class="nav-cta" href="https://github.com/vldyrz708/northwind-mysql" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+  </nav>
+  <div class="nav-categories" aria-label="Accesos rápidos">
+    <a href="./studio.html" data-tone="ops">Multi-tabla</a>
+    <a href="./inventory.html" data-tone="ops">Inventario</a>
+    <a href="./sales.html" data-tone="sales">Ventas</a>
+    <a href="./purchase-requests.html" data-tone="supply">Compras</a>
+    <a href="./products.html" data-tone="catalog">Productos</a>
+    <a href="./categories.html" data-tone="catalog">Categorías</a>
+    <a href="./orders.html" data-tone="sales">Órdenes</a>
+    <a href="./customers.html" data-tone="crm" aria-current="page">Clientes</a>
+    <a href="./suppliers.html" data-tone="supply">Proveedores</a>
+    <a href="./employees.html" data-tone="people">Talento</a>
+    <a href="./shippers.html" data-tone="log">Logística</a>
+  </div>
+
+  <header class="hero hero--detail">
+    <div class="hero__content">
+      <a class="back-link" href="./index.html">⟵ Volver al panel</a>
+      <p class="eyebrow">CRM</p>
+      <h1 data-hero-title>Directorio de clientes</h1>
+      <p data-hero-subtitle>Actualiza datos de contacto, direcciones y segmentos para cada cliente corporativo del catálogo.</p>
+    </div>
+    <div class="hero-meta hero-meta--compact">
+      <article class="stat-card">
+        <span>Tabla activa</span>
+        <strong>customers</strong>
+        <small>CRM central</small>
+      </article>
+      <article class="stat-card">
+        <span>Campos críticos</span>
+        <strong>Segmento · Contacto</strong>
+        <small>Actualiza en segundos</small>
+      </article>
+    </div>
   </header>
+
   <main class="crud-layout">
     <section class="panel">
+      <header class="panel-header">
+        <div>
+          <p class="eyebrow">Explorador</p>
+          <h2>Registros</h2>
+        </div>
+        <span class="chip chip-live">Tiempo real</span>
+      </header>
       <div class="controls">
         <label class="field" data-table-label>
-          Tabla
+          <span class="field-title">Tabla</span>
           <select id="tableSelect"></select>
         </label>
         <label class="field">
-          Buscar
+          <span class="field-title">Buscar</span>
           <input type="text" id="searchInput" placeholder="Filtrar por texto" />
         </label>
         <label class="field">
-          Página
+          <span class="field-title">Página</span>
           <input type="number" id="pageInput" min="1" value="1" />
         </label>
         <label class="field">
-          Tamaño
+          <span class="field-title">Tamaño</span>
           <input type="number" id="pageSizeInput" min="5" max="100" value="20" />
         </label>
       </div>
@@ -46,10 +129,13 @@
       <div class="status" id="status"></div>
     </section>
     <section class="panel">
-      <div>
-        <h2 style="margin:0 0 0.35rem">Ficha del cliente</h2>
+      <header class="panel-header">
+        <div>
+          <p class="eyebrow">Formulario</p>
+          <h2>Ficha del cliente</h2>
+        </div>
         <small id="formMode">Modo: crear</small>
-      </div>
+      </header>
       <form id="recordForm" class="crud-form">
         <div class="form-grid" id="formFields"></div>
         <div class="actions">

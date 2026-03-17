@@ -6,13 +6,33 @@ import {
   createRecord,
   updateRecord,
   deleteRecord,
-  getForeignOptions
+  getForeignOptions,
+  getImageBlob
 } from '../services/crudService.js';
 
 const router = Router();
 
 router.get('/meta', (_req, res) => {
   res.json(getMetadata());
+});
+
+router.get('/:table/image/:column', async (req, res, next) => {
+  try {
+    const { table, column } = req.params;
+    let buf = await getImageBlob(table, column, req.query);
+    if (!buf || !buf.length) { return res.status(404).end(); }
+    // Strip OLE object header present in some Northwind exports (78-byte prefix)
+    if (buf.length > 78 && buf[0] === 0x15 && buf[1] === 0x1c) { buf = buf.subarray(78); }
+    // Detect image type from magic bytes
+    let contentType = 'image/jpeg';
+    if (buf[0] === 0x89 && buf[1] === 0x50) { contentType = 'image/png'; }
+    else if (buf[0] === 0x47 && buf[1] === 0x49) { contentType = 'image/gif'; }
+    else if (buf[0] === 0x42 && buf[1] === 0x4d) { contentType = 'image/bmp'; }
+    res.set({ 'Content-Type': contentType, 'Cache-Control': 'public, max-age=3600' });
+    return res.send(buf);
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get('/:table/options', async (req, res, next) => {

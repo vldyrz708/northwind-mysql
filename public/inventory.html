@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Northwind · Inventario</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <style>
+    .inv-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      padding: 1.5rem;
+    }
+    .inv-full { grid-column: 1 / -1; }
+    .stock-table td, .stock-table th { padding: .4rem .6rem; font-size: .85rem; }
+    .stock-table tr:hover td { background: var(--surface-2, #1e293b); }
+    .move-table td, .move-table th { padding: .35rem .6rem; font-size: .82rem; }
+    .chip-type { font-size: .72rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; background: #334155; color: #94a3b8; }
+    .chip-warehouse_exit { background: rgba(251,191,36,.15); color: #fbbf24; border: 1px solid rgba(251,191,36,.25); }
+    .chip-sale_exit      { background: rgba(248,113,113,.15); color: #f87171; border: 1px solid rgba(248,113,113,.25); }
+    .chip-purchase_entry { background: rgba(52,211,153,.15);  color: #34d399; border: 1px solid rgba(52,211,153,.25); }
+    .chip-adjustment     { background: rgba(167,139,250,.15); color: #a78bfa; border: 1px solid rgba(167,139,250,.25); }
+    @media (max-width: 900px) {
+      .inv-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ── Navigation ── -->
+  <nav class="top-nav">
+    <a class="brand" href="./index.html" aria-label="Ir al panel principal">
+      <span class="brand-mark" aria-hidden="true">NW</span>
+      <div class="brand-copy"><strong>Northwind Ops</strong><small>Control Room</small></div>
+    </a>
+    <div class="nav-links">
+      <a href="./studio.html">Ops Studio</a>
+      <details class="nav-menu">
+        <summary>Módulos</summary>
+        <div class="nav-menu__panel">
+          <div class="nav-menu__group" data-group="operaciones">
+            <span>Operaciones</span>
+            <a href="./inventory.html">Inventario</a>
+            <a href="./sales.html">Ventas</a>
+            <a href="./purchase-requests.html">Solicitudes de compra</a>
+          </div>
+          <div class="nav-menu__group" data-group="catalogo">
+            <span>Catálogo</span>
+            <a href="./products.html">Productos</a>
+            <a href="./categories.html">Categorías</a>
+          </div>
+          <div class="nav-menu__group" data-group="ventas">
+            <span>Transacciones</span>
+            <a href="./orders.html">Órdenes</a>
+            <a href="./order-details.html">Detalle de órdenes</a>
+          </div>
+          <div class="nav-menu__group" data-group="relaciones">
+            <span>Relaciones</span>
+            <a href="./customers.html">Clientes</a>
+            <a href="./suppliers.html">Proveedores</a>
+          </div>
+          <div class="nav-menu__group" data-group="talento">
+            <span>Talento &amp; logística</span>
+            <a href="./employees.html">Empleados</a>
+            <a href="./shippers.html">Transportistas</a>
+          </div>
+        </div>
+      </details>
+      <a href="./sales.html">Ventas</a>
+      <a class="nav-cta" href="https://github.com/vldyrz708/northwind-mysql" target="_blank" rel="noreferrer">GitHub</a>
+    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+  </nav>
+  <div class="nav-categories" aria-label="Accesos rápidos">
+    <a href="./studio.html" data-tone="ops">Multi-tabla</a>
+    <a href="./inventory.html" data-tone="ops" aria-current="page">Inventario</a>
+    <a href="./sales.html" data-tone="sales">Ventas</a>
+    <a href="./purchase-requests.html" data-tone="supply">Compras</a>
+    <a href="./products.html" data-tone="catalog">Productos</a>
+    <a href="./categories.html" data-tone="catalog">Categorías</a>
+    <a href="./orders.html" data-tone="sales">Órdenes</a>
+    <a href="./customers.html" data-tone="crm">Clientes</a>
+    <a href="./suppliers.html" data-tone="supply">Proveedores</a>
+    <a href="./employees.html" data-tone="people">Talento</a>
+    <a href="./shippers.html" data-tone="log">Logística</a>
+  </div>
+
+  <!-- ── Hero ── -->
+  <header class="hero hero--detail">
+    <div class="hero__content">
+      <a class="back-link" href="./index.html">⟵ Volver al panel</a>
+      <p class="eyebrow">Operaciones</p>
+      <h1>Gestión de Inventario</h1>
+      <p>Consulta el stock actual, registra salidas de almacén y revisa el historial de movimientos.</p>
+    </div>
+    <div class="hero-meta hero-meta--compact">
+      <article class="stat-card"><span>Módulo</span><strong>Inventario</strong><small>Stock en tiempo real</small></article>
+      <article class="stat-card"><span>Operación</span><strong>Salida de almacén</strong><small>Con validación de stock</small></article>
+    </div>
+  </header>
+
+  <!-- ── Main grid ── -->
+  <div class="inv-grid">
+
+    <!-- Stock list -->
+    <section class="panel inv-full">
+      <header class="panel-header">
+        <div><p class="eyebrow">Catálogo</p><h2>Stock actual de productos</h2></div>
+        <span class="chip chip-live">Tiempo real</span>
+      </header>
+      <div class="controls">
+        <label class="field">
+          <span class="field-title">Buscar producto</span>
+          <input type="text" id="stockSearch" placeholder="Nombre o categoría…" />
+        </label>
+        <label class="field">
+          <span class="field-title">Página</span>
+          <input type="number" id="stockPage" value="1" min="1" style="width:5rem" />
+        </label>
+        <button class="btn-accent" id="stockReload">Actualizar</button>
+      </div>
+      <div class="table-wrapper">
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Producto</th><th>Categoría</th><th>Proveedor</th>
+              <th>Precio</th><th>En stock</th><th>En pedido</th><th>Reorden</th><th>Estado</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="stockBody"></tbody>
+        </table>
+      </div>
+      <div id="stockStats" class="grid-stats"></div>
+    </section>
+
+    <!-- Exit form -->
+    <section class="panel">
+      <header class="panel-header">
+        <div><p class="eyebrow">Almacén</p><h2>Registrar salida</h2></div>
+      </header>
+      <form id="exitForm" class="crud-form" style="padding:1rem">
+        <div class="form-grid">
+          <label class="field">
+            <span class="field-title">Producto <span class="required">*</span></span>
+            <select id="exitProduct" required>
+              <option value="">— seleccionar —</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-title">Stock disponible</span>
+            <input type="text" id="exitCurrentStock" readonly placeholder="Selecciona un producto" />
+          </label>
+          <label class="field">
+            <span class="field-title">Cantidad a retirar <span class="required">*</span></span>
+            <input type="number" id="exitQty" min="1" required placeholder="0" />
+          </label>
+          <label class="field">
+            <span class="field-title">Stock resultante</span>
+            <input type="text" id="exitStockAfter" readonly placeholder="—" />
+          </label>
+          <label class="field">
+            <span class="field-title">Tipo de movimiento</span>
+            <select id="exitType">
+              <option value="warehouse_exit">Salida de almacén</option>
+              <option value="adjustment">Ajuste de inventario</option>
+              <option value="sale_exit">Salida por venta</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-title">Empleado responsable</span>
+            <select id="exitEmployee">
+              <option value="">— ninguno —</option>
+            </select>
+          </label>
+          <label class="field" id="exitRefRow" style="display:none;grid-column:1/-1">
+            <span class="field-title">ID de referencia (Orden u otro)</span>
+            <input type="number" id="exitReference" min="1" placeholder="Ej. 10248" />
+          </label>
+          <label class="field" style="grid-column:1/-1">
+            <span class="field-title">Motivo de la salida</span>
+            <textarea id="exitReason" rows="2" placeholder="Merma, muestra, uso interno…"></textarea>
+          </label>
+        </div>
+        <div class="actions" style="margin-top:1rem">
+          <button type="submit" class="btn-accent" id="exitSubmitBtn" disabled>Registrar salida</button>
+          <button type="button" class="btn-ghost" id="exitClear">Limpiar</button>
+        </div>
+        <div id="exitStockWarn" style="margin-top:.4rem;font-size:.82rem;color:#f87171"></div>
+        <div id="exitMsg" style="margin-top:.75rem;font-size:.9rem"></div>
+      </form>
+    </section>
+
+    <!-- Movement history -->
+    <section class="panel">
+      <header class="panel-header">
+        <div><p class="eyebrow">Historial</p><h2>Movimientos de stock</h2></div>
+        <label class="field" style="width:auto;flex-direction:row;align-items:center;gap:.5rem">
+          <span class="field-title" style="white-space:nowrap">Página</span>
+          <input type="number" id="movPage" value="1" min="1" style="width:4rem" />
+        </label>
+      </header>
+      <div class="table-wrapper">
+        <table class="move-table">
+          <thead>
+            <tr><th>#</th><th>Tipo</th><th>Producto</th><th>Cant.</th><th>Antes→Desp.</th><th>Motivo</th><th>Empleado</th><th>Referencia</th><th>Fecha</th></tr>
+          </thead>
+          <tbody id="movBody"></tbody>
+        </table>
+      </div>
+      <div id="movStats" class="grid-stats"></div>
+    </section>
+
+  </div><!-- /inv-grid -->
+
+  <script type="module">
+    const API = '/api';
+    const $ = (id) => document.getElementById(id);
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    const fmtMoney = (n) => n != null ? `$${Number(n).toFixed(2)}` : '—';
+    const fmtDate  = (d) => d ? String(d).split('T')[0] : '—';
+    const typeChip = (t) => `<span class="chip-type chip-${t}">${t}</span>`;
+    const statusBadge = (inStock, reorder) => {
+      if (inStock <= 0)      return '<span class="badge badge-out">Sin stock</span>';
+      if (inStock <= reorder) return '<span class="badge badge-low">Stock bajo</span>';
+      return '<span class="badge badge-ok">Normal</span>';
+    };
+
+    // ── Products dropdown cache ───────────────────────────────────────────────
+    let productCache = [];  // [{ ProductID, ProductName, UnitsInStock }]
+    let employeeCache = [];
+
+    // Rebuilds only the product <select> with fresh stock data.
+    const refreshProductOptions = async () => {
+      const data = await fetch(`${API}/inventory/stock?pageSize=200`).then(r => r.json());
+      productCache = data.data || [];
+      const sel = $('exitProduct');
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">— seleccionar —</option>';
+      productCache.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.ProductID;
+        opt.textContent = `${p.ProductName} (stock: ${p.UnitsInStock})`;
+        opt.dataset.stock = p.UnitsInStock;
+        sel.appendChild(opt);
+      });
+      if (prev) { sel.value = prev; }
+    };
+
+    const loadDropdowns = async () => {
+      const res  = await fetch(`${API}/employees?pageSize=200`);
+      const data = await res.json();
+      employeeCache = (data.data || []).map(e => ({
+        value: e.EmployeeID,
+        label: `${e.FirstName || ''} ${e.LastName || ''}`.trim() || `Empleado #${e.EmployeeID}`
+      }));
+      const empSel = $('exitEmployee');
+      employeeCache.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.value;
+        opt.textContent = e.label;
+        empSel.appendChild(opt);
+      });
+      await refreshProductOptions();
+    };
+
+    // ── Stock grid ────────────────────────────────────────────────────────────
+    const loadStock = async () => {
+      const page   = $('stockPage').value;
+      const search = $('stockSearch').value;
+      const res  = await fetch(`${API}/inventory/stock?page=${page}&pageSize=20&search=${encodeURIComponent(search)}`);
+      const data = await res.json();
+      const tbody = $('stockBody');
+      tbody.innerHTML = '';
+      (data.data || []).forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${p.ProductID}</td>
+          <td>${p.ProductName}</td>
+          <td>${p.CategoryName || '—'}</td>
+          <td>${p.SupplierName || '—'}</td>
+          <td>${fmtMoney(p.UnitPrice)}</td>
+          <td><strong>${p.UnitsInStock}</strong></td>
+          <td>${p.UnitsOnOrder}</td>
+          <td>${p.ReorderLevel}</td>
+          <td>${statusBadge(p.UnitsInStock, p.ReorderLevel)}</td>
+          <td>${p.UnitsInStock <= 0
+            ? '<button class="btn-ghost btn-sm" disabled title="Sin unidades disponibles">Sin stock</button>'
+            : `<button class="btn-ghost btn-sm" data-pid="${p.ProductID}" data-stock="${p.UnitsInStock}" data-name="${p.ProductName}">▼ Salida</button>`}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      $('stockStats').textContent = `Mostrando ${(data.data||[]).length} de ${data.total} productos · Página ${data.page}`;
+
+      // Quick-fill exit form on row action
+      tbody.querySelectorAll('[data-pid]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sel = $('exitProduct');
+          sel.value = btn.dataset.pid;
+          $('exitType').value = 'warehouse_exit';
+          $('exitRefRow').style.display = 'none';
+          $('exitReference').value = '';
+          sel.dispatchEvent(new Event('change'));
+          $('exitForm').scrollIntoView({ behavior: 'smooth' });
+        });
+      });
+    };
+
+    // ── Movements ─────────────────────────────────────────────────────────────
+    const loadMovements = async () => {
+      const page = $('movPage').value;
+      const res  = await fetch(`${API}/inventory/movements?page=${page}&pageSize=15`);
+      const data = await res.json();
+      const tbody = $('movBody');
+      tbody.innerHTML = '';
+      (data.data || []).forEach((m) => {
+        const tr = document.createElement('tr');
+        const stockTrace = (m.StockBefore != null && m.StockAfter != null)
+          ? `${m.StockBefore} → ${m.StockAfter}`
+          : '—';
+        const refText = m.ReferenceID
+          ? `${m.ReferenceID}${m.ReferenceType ? ` (${m.ReferenceType})` : ''}`
+          : '—';
+        tr.innerHTML = `
+          <td>${m.MovementID}</td>
+          <td>${typeChip(m.MovementType)}</td>
+          <td>${m.ProductName || m.ProductID}</td>
+          <td>${m.Quantity}</td>
+          <td>${stockTrace}</td>
+          <td>${m.Reason || '—'}</td>
+          <td>${m.EmployeeName || '—'}</td>
+          <td>${refText}</td>
+          <td>${fmtDate(m.CreatedAt)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      $('movStats').textContent = `Total de movimientos: ${data.total} · Página ${data.page}`;
+    };
+
+    // ── Exit form ─────────────────────────────────────────────────────────────
+    const validateExitForm = () => {
+      const stock = Number($('exitCurrentStock').value) || 0;
+      const qty   = Number($('exitQty').value) || 0;
+      const hasProduct = !!$('exitProduct').value;
+      const warnEl    = $('exitStockWarn');
+      const submitBtn = $('exitSubmitBtn');
+      // Live "stock after" preview
+      const afterEl = $('exitStockAfter');
+      if (hasProduct && qty > 0 && qty <= stock) {
+        const after = stock - qty;
+        afterEl.value = after;
+        afterEl.style.color = after <= 0 ? '#f87171' : '';
+      } else {
+        afterEl.value = '';
+        afterEl.style.color = '';
+      }
+      if (!hasProduct) {
+        submitBtn.disabled = true;
+        warnEl.textContent = '';
+      } else if (stock <= 0) {
+        submitBtn.disabled = true;
+        warnEl.textContent = 'Este producto no tiene stock disponible.';
+      } else if (qty > stock) {
+        submitBtn.disabled = true;
+        warnEl.textContent = `La cantidad excede el stock disponible (máx. ${stock} uni.).`;
+      } else if (qty <= 0) {
+        submitBtn.disabled = true;
+        warnEl.textContent = '';
+      } else {
+        submitBtn.disabled = false;
+        warnEl.textContent = '';
+      }
+    };
+
+    $('exitProduct').addEventListener('change', () => {
+      const opt = $('exitProduct').selectedOptions[0];
+      const stock = Number(opt?.dataset?.stock ?? 0);
+      $('exitCurrentStock').value = stock > 0 ? stock : '';
+      $('exitQty').max = stock > 0 ? stock : 0;
+      $('exitQty').placeholder = stock > 0 ? `Máx. ${stock}` : 'Sin stock';
+      validateExitForm();
+    });
+
+    $('exitQty').addEventListener('input', validateExitForm);
+
+    $('exitType').addEventListener('change', () => {
+      const isSaleExit = $('exitType').value === 'sale_exit';
+      $('exitRefRow').style.display = isSaleExit ? '' : 'none';
+      if (!isSaleExit) { $('exitReference').value = ''; }
+    });
+
+    $('exitForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const productLabel = $('exitProduct').selectedOptions[0]?.text || 'el producto';
+      const qty = Number($('exitQty').value);
+      if (!confirm(`¿Confirmar salida de ${qty} unidad(es) de "${productLabel}"?`)) { return; }
+      const msgEl = $('exitMsg');
+      msgEl.textContent = '';
+      const movType = $('exitType').value || 'warehouse_exit';
+      const payload = {
+        ProductID:     Number($('exitProduct').value),
+        Quantity:      qty,
+        Reason:        $('exitReason').value || null,
+        EmployeeID:    $('exitEmployee').value ? Number($('exitEmployee').value) : null,
+        MovementType:  movType,
+        ReferenceID:   $('exitReference').value ? Number($('exitReference').value) : null,
+        ReferenceType: movType === 'sale_exit' ? 'order' : null,
+      };
+      try {
+        const res = await fetch(`${API}/inventory/exit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.message || 'Error al registrar salida');
+        const trace = (body.StockBefore != null && body.StockAfter != null)
+          ? ` — Stock: ${body.StockBefore} → ${body.StockAfter}`
+          : '';
+        msgEl.style.color = '#059669';
+        msgEl.textContent = `✓ Salida registrada. Movimiento #${body.MovementID}${trace}`;
+        $('exitForm').reset();
+        $('exitCurrentStock').value = '';
+        $('exitStockAfter').value = '';
+        $('exitRefRow').style.display = 'none';
+        validateExitForm();
+        await Promise.all([loadStock(), loadMovements(), refreshProductOptions()]);
+      } catch (err) {
+        msgEl.style.color = '#dc2626';
+        msgEl.textContent = `✗ ${err.message}`;
+      }
+    });
+
+    $('exitClear').addEventListener('click', () => {
+      $('exitForm').reset();
+      $('exitCurrentStock').value = '';
+      $('exitStockAfter').value = '';
+      $('exitMsg').textContent = '';
+      $('exitStockWarn').textContent = '';
+      $('exitQty').removeAttribute('max');
+      $('exitQty').placeholder = '0';
+      $('exitRefRow').style.display = 'none';
+      validateExitForm();
+    });
+
+    // ── Pagination ────────────────────────────────────────────────────────────
+    $('stockReload').addEventListener('click', loadStock);
+    $('stockSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadStock(); });
+    $('stockPage').addEventListener('change', loadStock);
+    $('movPage').addEventListener('change', loadMovements);
+
+    // ── Boot ──────────────────────────────────────────────────────────────────
+    await Promise.all([loadDropdowns(), loadStock(), loadMovements()]);
+  </script>
+</body>
+</html>
