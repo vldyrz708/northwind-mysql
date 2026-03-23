@@ -35,6 +35,40 @@ export function showToast(message, type = 'info', durationMs = 3800) {
   toast.addEventListener('click', () => { clearTimeout(timer); remove(); });
 }
 
+/* ── Result action modal ───────────────────────────────────────────────── */
+export function showResultModal(action = 'create', message = '', autoDismissMs = 2800) {
+  const configs = {
+    create: { icon: '✅', title: '¡Creado!',    accent: '#22c55e' },
+    edit:   { icon: '✏️',  title: 'Actualizado', accent: '#60a5fa' },
+    delete: { icon: '🗑️', title: 'Eliminado',   accent: '#f87171' },
+    error:  { icon: '❌',  title: 'Error',        accent: '#dc2626' },
+  };
+  const cfg = configs[action] ?? configs.create;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'result-overlay';
+  overlay.innerHTML = `
+    <div class="result-box" role="dialog" aria-modal="true" aria-labelledby="result-title" style="--result-accent:${cfg.accent}">
+      <div class="result-box__progress"></div>
+      <div class="result-box__icon" aria-hidden="true">${cfg.icon}</div>
+      <p class="result-box__title" id="result-title">${cfg.title}</p>
+      <p class="result-box__msg">${message}</p>
+      <button class="btn-ghost result-box__close" type="button">Cerrar</button>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = () => {
+    overlay.classList.add('result-out');
+    overlay.addEventListener('animationend', () => overlay.remove(), { once: true });
+  };
+  const closeBtn = overlay.querySelector('.result-box__close');
+  const timer = setTimeout(close, autoDismissMs);
+  closeBtn.addEventListener('click', () => { clearTimeout(timer); close(); });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) { clearTimeout(timer); close(); } });
+  overlay.addEventListener('keydown', (e) => { if (e.key === 'Escape') { clearTimeout(timer); close(); } });
+  setTimeout(() => closeBtn?.focus(), 50);
+}
+
 /* ── Custom confirm dialog ─────────────────────────────────────────────── */
 export function showConfirm(message, onConfirm, confirmLabel = 'Eliminar') {
   const overlay = document.createElement('div');
@@ -350,10 +384,10 @@ export function initCrudPage(userSettings = {}) {
               await fetchJSON(`${settings.apiBase}/${state.currentTable}`, { method: 'DELETE', body: pk });
               await loadTable();
               setStatus('Registro eliminado.', 'success');
-              showToast('Registro eliminado correctamente.', 'success');
+              showResultModal('delete', 'Registro eliminado correctamente.');
             } catch (error) {
               setStatus(error.message, 'error');
-              showToast(error.message, 'error');
+              showResultModal('error', error.message);
             }
           });
         });
@@ -858,10 +892,10 @@ export function initCrudPage(userSettings = {}) {
       closeRecordModal();
       const msg = mode === 'edit' ? 'Registro actualizado correctamente.' : 'Registro creado correctamente.';
       setStatus(msg, 'success');
-      showToast(msg, 'success');
+      showResultModal(mode === 'edit' ? 'edit' : 'create', msg);
     } catch (error) {
       setStatus(error.message, 'error');
-      showToast(error.message, 'error');
+      showResultModal('error', error.message);
     } finally {
       if (submitBtn) { delete submitBtn.dataset.loading; submitBtn.textContent = originalText; }
     }
@@ -882,10 +916,10 @@ export function initCrudPage(userSettings = {}) {
           await loadTable();
           closeRecordModal();
           setStatus('Registro eliminado.', 'success');
-          showToast('Registro eliminado correctamente.', 'success');
+          showResultModal('delete', 'Registro eliminado correctamente.');
         } catch (error) {
           setStatus(error.message, 'error');
-          showToast(error.message, 'error');
+          showResultModal('error', error.message);
         } finally {
           delete deleteBtn.dataset.loading;
           deleteBtn.textContent = originalText;

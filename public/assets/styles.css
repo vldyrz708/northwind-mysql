@@ -965,6 +965,101 @@ input[data-overstock] {
   justify-content: center;
 }
 
+/* ── Result action modal (create / edit / delete / error) ──────────────── */
+.result-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.62);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 9200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fade-in 0.18s ease forwards;
+}
+
+.result-overlay.result-out {
+  animation: fade-out 0.22s ease forwards;
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.result-box {
+  background: var(--panel);
+  border: 1.5px solid var(--result-accent, var(--border));
+  border-radius: 1.25rem;
+  padding: 2rem 1.75rem 1.5rem;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55), 0 0 24px -4px var(--result-accent, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  position: relative;
+  overflow: hidden;
+  animation: slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.result-box__progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background: var(--result-accent, var(--accent));
+  transform-origin: left center;
+  animation: progress-shrink 2.8s linear forwards;
+}
+
+@keyframes progress-shrink {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+.result-box__icon {
+  font-size: 2.75rem;
+  line-height: 1;
+  margin-bottom: 0.15rem;
+}
+
+.result-box__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--result-accent, var(--text));
+  margin: 0;
+  text-align: center;
+}
+
+.result-box__msg {
+  font-size: 0.875rem;
+  color: var(--muted);
+  text-align: center;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.result-box__close {
+  margin-top: 0.65rem;
+  font-size: 0.82rem;
+  padding: 0.35rem 1.1rem;
+}
+
+/* Light mode adjustments */
+[data-theme='light'] .result-overlay {
+  background: rgba(15, 20, 40, 0.45);
+}
+
+[data-theme='light'] .result-box {
+  background: #ffffff;
+  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--result-accent, var(--border));
+}
+
 /* ── Nav active current page ───────────────────────────────────────────── */
 .nav-categories a[aria-current='page'] {
   color: var(--text);
