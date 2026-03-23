@@ -1133,6 +1133,7 @@ input[data-overstock] {
 @media (max-width: 800px) {
   body {
     padding-left: 0;
+    padding-top: 3.75rem;
   }
 
   .top-nav {
@@ -1146,10 +1147,19 @@ input[data-overstock] {
     box-shadow: 8px 0 40px rgba(0, 0, 0, 0.45);
   }
 
+  /* Fix toggle so it stays visible on scroll */
   .nav-toggle {
+    position: fixed;
+    top: 0.85rem;
+    left: 0.85rem;
+    z-index: 200;
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .hero {
+    margin-top: 0.5rem;
   }
 
   /* Overlay behind sidebar on mobile */
@@ -1169,8 +1179,54 @@ input[data-overstock] {
     grid-template-columns: 1fr;
   }
 
+  .hero {
+    padding: 1.25rem 1rem;
+    border-radius: 1rem;
+    gap: 1.25rem;
+  }
+
   .hero-actions {
     flex-direction: column;
+  }
+
+  .hero-meta {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+
+  .panel {
+    padding: 1rem 0.875rem;
+    border-radius: 1rem;
+  }
+
+  .panel-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .panel-header h2 {
+    font-size: 1.05rem;
+  }
+
+  .landing-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card strong {
+    font-size: 1.3rem;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions button {
+    width: 100%;
+    text-align: center;
   }
 
   button.btn-accent,
@@ -1178,6 +1234,11 @@ input[data-overstock] {
   button.btn-alt {
     width: 100%;
     text-align: center;
+  }
+
+  .grid-stats {
+    flex-direction: column;
+    gap: 0.25rem;
   }
 
   .confirm-box__actions {
@@ -1193,6 +1254,48 @@ input[data-overstock] {
     right: 0.75rem;
     left: 0.75rem;
     max-width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  body {
+    padding-top: 3.25rem;
+    padding-bottom: 2rem;
+  }
+
+  .hero {
+    padding: 1rem;
+    border-radius: 0.85rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(1.4rem, 8vw, 2rem);
+  }
+
+  .hero-meta {
+    display: none;
+  }
+
+  .panel {
+    padding: 0.85rem 0.75rem;
+    border-radius: 0.85rem;
+  }
+
+  .stat-card strong {
+    font-size: 1.1rem;
+  }
+
+  table {
+    font-size: 0.82rem;
+  }
+
+  thead th,
+  tbody td {
+    padding: 0.5rem 0.55rem;
+  }
+
+  .controls {
+    padding: 0.75rem;
   }
 }
 
