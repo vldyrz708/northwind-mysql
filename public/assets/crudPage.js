@@ -18,7 +18,7 @@ function initToastContainer() {
   document.body.appendChild(el);
 }
 
-function showToast(message, type = 'info', durationMs = 3800) {
+export function showToast(message, type = 'info', durationMs = 3800) {
   initToastContainer();
   const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
   const container = document.getElementById('toast-container');
@@ -36,7 +36,7 @@ function showToast(message, type = 'info', durationMs = 3800) {
 }
 
 /* ── Custom confirm dialog ─────────────────────────────────────────────── */
-function showConfirm(message, onConfirm) {
+export function showConfirm(message, onConfirm, confirmLabel = 'Eliminar') {
   const overlay = document.createElement('div');
   overlay.className = 'confirm-overlay';
   overlay.innerHTML = `
@@ -46,7 +46,7 @@ function showConfirm(message, onConfirm) {
       <p class="confirm-box__msg">${message}</p>
       <div class="confirm-box__actions">
         <button class="btn-ghost" id="confirm-cancel">Cancelar</button>
-        <button class="btn-accent" id="confirm-ok" style="background:linear-gradient(135deg,#f87171,#dc2626);color:#fff">Eliminar</button>
+        <button class="btn-accent" id="confirm-ok" style="background:linear-gradient(135deg,#f87171,#dc2626);color:#fff">${confirmLabel}</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -66,19 +66,60 @@ function initMobileNav() {
   if (!toggle || !nav) { return; }
   toggle.addEventListener('click', () => {
     const open = nav.classList.toggle('nav-open');
+    document.body.classList.toggle('sidebar-open', open);
     toggle.setAttribute('aria-expanded', String(open));
     toggle.textContent = open ? '✕' : '☰';
   });
   document.addEventListener('click', (e) => {
-    if (nav.classList.contains('nav-open') && !nav.contains(e.target)) {
+    if (nav.classList.contains('nav-open') && !nav.contains(e.target) && !toggle.contains(e.target)) {
       nav.classList.remove('nav-open');
+      document.body.classList.remove('sidebar-open');
       toggle.setAttribute('aria-expanded', 'false');
       toggle.textContent = '☰';
     }
   });
 }
 
-document.addEventListener('DOMContentLoaded', initMobileNav);
+/* ── Theme system ───────────────────────────────────────────────────────── */
+function applyTheme(theme, save) {
+  document.documentElement.setAttribute('data-theme', theme);
+  if (save) { localStorage.setItem('nw-theme', theme); }
+  const icon  = document.getElementById('themeIcon');
+  const label = document.getElementById('themeLabel');
+  if (icon)  { icon.textContent  = theme === 'light' ? '☾' : '☀'; }
+  if (label) { label.textContent = theme === 'light' ? 'Modo oscuro' : 'Modo claro'; }
+}
+
+function initTheme() {
+  const stored = localStorage.getItem('nw-theme');
+  const theme  = stored || 'dark';
+  applyTheme(theme, false);
+
+  const nav = document.querySelector('.top-nav');
+  if (!nav) { return; }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'nav-theme';
+  wrap.innerHTML = `
+    <button class="theme-toggle" id="themeToggle" aria-label="Cambiar tema">
+      <span class="theme-toggle__icon" id="themeIcon" aria-hidden="true"></span>
+      <span class="theme-toggle__label" id="themeLabel"></span>
+    </button>`;
+  nav.appendChild(wrap);
+
+  // Re-apply to populate the freshly inserted icon/label
+  applyTheme(theme, false);
+
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    applyTheme(next, true);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initMobileNav();
+  initTheme();
+});
 
 export function initCrudPage(userSettings = {}) {
   const settings = { ...defaultSettings, ...userSettings };
@@ -264,10 +305,10 @@ export function initCrudPage(userSettings = {}) {
     const def = state.meta[state.currentTable];
     if (!def || !refs.tableHead || !refs.tableBody) { return; }
     const columns = buildColumns(def);
-    refs.tableHead.innerHTML = '<tr>' + columns.map((col) => `<th>${col.label || col.column}</th>`).join('') + '<th class="col-actions">Acciones</th></tr>';
+    refs.tableHead.innerHTML = '<tr><th class="col-row-number">#</th>' + columns.map((col) => `<th>${col.label || col.column}</th>`).join('') + '<th class="col-actions">Acciones</th></tr>';
     refs.tableBody.innerHTML = '';
     if (!state.records.length) {
-      const colCount = columns.length + 1;
+      const colCount = columns.length + 2;
       refs.tableBody.innerHTML = `<tr><td colspan="${colCount}">
         <div class="empty-state">
           <span class="empty-state__icon" aria-hidden="true">📋</span>
@@ -276,10 +317,12 @@ export function initCrudPage(userSettings = {}) {
         </div>
       </td></tr>`;
     } else {
-      state.records.forEach((record) => {
+      const rowIndexOffset = (state.page - 1) * state.pageSize;
+      state.records.forEach((record, idx) => {
         const row = document.createElement('tr');
         row.dataset.pk = JSON.stringify(extractPk(def, record));
-        row.innerHTML = columns.map((col) => `<td>${formatCell(col, record[col.column], record)}</td>`).join('');
+        const displayRowNumber = rowIndexOffset + idx + 1;
+        row.innerHTML = [`<td class="cell-row-number">${displayRowNumber}</td>`, ...columns.map((col) => `<td>${formatCell(col, record[col.column], record)}</td>`)].join('');
 
         const actionsCell = document.createElement('td');
         actionsCell.className = 'row-actions';

@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Northwind · Transportistas</title>
   <link rel="stylesheet" href="./assets/styles.css" />
+  <script>(function(){var t=localStorage.getItem('nw-theme');if(t)document.documentElement.setAttribute('data-theme',t);})()</script>
 </head>
 <body>
-  <nav class="top-nav">
+  <nav class="top-nav" id="main-nav">
     <a class="brand" href="./index.html" aria-label="Ir al panel principal">
       <span class="brand-mark" aria-hidden="true">NW</span>
       <div class="brand-copy">
@@ -17,55 +18,26 @@
     </a>
     <div class="nav-links">
       <a href="./studio.html">Ops Studio</a>
-      <details class="nav-menu">
-        <summary>Módulos</summary>
-        <div class="nav-menu__panel">
-          <div class="nav-menu__group" data-group="operaciones">
-            <span>Operaciones</span>
-            <a href="./inventory.html">Inventario</a>
-            <a href="./sales.html">Ventas</a>
-            <a href="./purchase-requests.html">Solicitudes de compra</a>
-          </div>
-          <div class="nav-menu__group" data-group="catalogo">
-            <span>Catálogo</span>
-            <a href="./products.html">Productos</a>
-            <a href="./categories.html">Categorías</a>
-          </div>
-          <div class="nav-menu__group" data-group="transacciones">
-            <span>Transacciones</span>
-            <a href="./orders.html">Órdenes</a>
-            <a href="./order-details.html">Detalle de órdenes</a>
-          </div>
-          <div class="nav-menu__group" data-group="relaciones">
-            <span>Relaciones</span>
-            <a href="./customers.html">Clientes</a>
-            <a href="./suppliers.html">Proveedores</a>
-          </div>
-          <div class="nav-menu__group" data-group="talento">
-            <span>Talento &amp; logística</span>
-            <a href="./employees.html">Empleados</a>
-            <a href="./shippers.html">Transportistas</a>
-          </div>
-        </div>
-      </details>
       <a href="./orders.html">Órdenes</a>
       <a class="nav-cta" href="https://github.com/vldyrz708/northwind-mysql" target="_blank" rel="noreferrer">GitHub</a>
     </div>
-    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+    <hr class="nav-divider">
+    <span class="nav-section-label">Módulos</span>
+    <div class="nav-categories" aria-label="Módulos">
+      <a href="./studio.html" data-tone="ops">Multi-tabla</a>
+      <a href="./inventory.html" data-tone="ops">Inventario</a>
+      <a href="./sales.html" data-tone="sales">Ventas</a>
+      <a href="./purchase-requests.html" data-tone="supply">Compras</a>
+      <a href="./products.html" data-tone="catalog">Productos</a>
+      <a href="./categories.html" data-tone="catalog">Categorías</a>
+      <a href="./orders.html" data-tone="sales">Órdenes</a>
+      <a href="./customers.html" data-tone="crm">Clientes</a>
+      <a href="./suppliers.html" data-tone="supply">Proveedores</a>
+      <a href="./employees.html" data-tone="people">Talento</a>
+      <a href="./shippers.html" data-tone="log" aria-current="page">Logística</a>
+    </div>
   </nav>
-  <div class="nav-categories" aria-label="Accesos rápidos">
-    <a href="./studio.html" data-tone="ops">Multi-tabla</a>
-    <a href="./inventory.html" data-tone="ops">Inventario</a>
-    <a href="./sales.html" data-tone="sales">Ventas</a>
-    <a href="./purchase-requests.html" data-tone="supply">Compras</a>
-    <a href="./products.html" data-tone="catalog">Productos</a>
-    <a href="./categories.html" data-tone="catalog">Categorías</a>
-    <a href="./orders.html" data-tone="sales">Órdenes</a>
-    <a href="./customers.html" data-tone="crm">Clientes</a>
-    <a href="./suppliers.html" data-tone="supply">Proveedores</a>
-    <a href="./employees.html" data-tone="people">Talento</a>
-    <a href="./shippers.html" data-tone="log" aria-current="page">Logística</a>
-  </div>
+  <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="main-nav">☰</button>
 
   <header class="hero hero--detail">
     <div class="hero__content">

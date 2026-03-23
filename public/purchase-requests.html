@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Northwind · Solicitudes de compra</title>
   <link rel="stylesheet" href="./assets/styles.css" />
+  <script>(function(){var t=localStorage.getItem('nw-theme');if(t)document.documentElement.setAttribute('data-theme',t);})()</script>
   <style>
     .pr-layout { display: grid; grid-template-columns: 1fr 440px; gap: 1.5rem; padding: 1.5rem; align-items: start; }
     @media (max-width: 900px) { .pr-layout { grid-template-columns: 1fr; } }
@@ -25,61 +26,33 @@
 </head>
 <body>
   <!-- ── Navigation ── -->
-  <nav class="top-nav">
+  <nav class="top-nav" id="main-nav">
     <a class="brand" href="./index.html" aria-label="Ir al panel principal">
       <span class="brand-mark" aria-hidden="true">NW</span>
       <div class="brand-copy"><strong>Northwind Ops</strong><small>Control Room</small></div>
     </a>
     <div class="nav-links">
       <a href="./studio.html">Ops Studio</a>
-      <details class="nav-menu">
-        <summary>Módulos</summary>
-        <div class="nav-menu__panel">
-          <div class="nav-menu__group" data-group="operaciones">
-            <span>Operaciones</span>
-            <a href="./inventory.html">Inventario</a>
-            <a href="./sales.html">Ventas</a>
-            <a href="./purchase-requests.html">Solicitudes de compra</a>
-          </div>
-          <div class="nav-menu__group" data-group="catalogo">
-            <span>Catálogo</span>
-            <a href="./products.html">Productos</a>
-            <a href="./categories.html">Categorías</a>
-          </div>
-          <div class="nav-menu__group" data-group="transacciones">
-            <span>Transacciones</span>
-            <a href="./orders.html">Órdenes</a>
-            <a href="./order-details.html">Detalle de órdenes</a>
-          </div>
-          <div class="nav-menu__group" data-group="relaciones">
-            <span>Relaciones</span>
-            <a href="./customers.html">Clientes</a>
-            <a href="./suppliers.html">Proveedores</a>
-          </div>
-          <div class="nav-menu__group" data-group="talento">
-            <span>Talento &amp; logística</span>
-            <a href="./employees.html">Empleados</a>
-            <a href="./shippers.html">Transportistas</a>
-          </div>
-        </div>
-      </details>
-      <a href="./purchase-requests.html">Compras</a>
+      <a href="./orders.html">Órdenes</a>
       <a class="nav-cta" href="https://github.com/vldyrz708/northwind-mysql" target="_blank" rel="noreferrer">GitHub</a>
-    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+    </div>
+    <hr class="nav-divider">
+    <span class="nav-section-label">Módulos</span>
+    <div class="nav-categories" aria-label="Módulos">
+      <a href="./studio.html" data-tone="ops">Multi-tabla</a>
+      <a href="./inventory.html" data-tone="ops">Inventario</a>
+      <a href="./sales.html" data-tone="sales">Ventas</a>
+      <a href="./purchase-requests.html" data-tone="supply" aria-current="page">Compras</a>
+      <a href="./products.html" data-tone="catalog">Productos</a>
+      <a href="./categories.html" data-tone="catalog">Categorías</a>
+      <a href="./orders.html" data-tone="sales">Órdenes</a>
+      <a href="./customers.html" data-tone="crm">Clientes</a>
+      <a href="./suppliers.html" data-tone="supply">Proveedores</a>
+      <a href="./employees.html" data-tone="people">Talento</a>
+      <a href="./shippers.html" data-tone="log">Logística</a>
+    </div>
   </nav>
-  <div class="nav-categories" aria-label="Accesos rápidos">
-    <a href="./studio.html" data-tone="ops">Multi-tabla</a>
-    <a href="./inventory.html" data-tone="ops">Inventario</a>
-    <a href="./sales.html" data-tone="sales">Ventas</a>
-    <a href="./purchase-requests.html" data-tone="supply" aria-current="page">Compras</a>
-    <a href="./products.html" data-tone="catalog">Productos</a>
-    <a href="./categories.html" data-tone="catalog">Categorías</a>
-    <a href="./orders.html" data-tone="sales">Órdenes</a>
-    <a href="./customers.html" data-tone="crm">Clientes</a>
-    <a href="./suppliers.html" data-tone="supply">Proveedores</a>
-    <a href="./employees.html" data-tone="people">Talento</a>
-    <a href="./shippers.html" data-tone="log">Logística</a>
-  </div>
+  <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="main-nav">☰</button>
 
   <!-- ── Hero ── -->
   <header class="hero hero--detail">
@@ -187,6 +160,8 @@
   </div>
 
   <script type="module">
+    import { showToast } from './assets/crudPage.js';
+
     const API = '/api';
     const $ = (id) => document.getElementById(id);
     const fmtDate  = (d) => d ? String(d).split('T')[0] : '—';
@@ -234,17 +209,20 @@
 
     // ── Requests list ─────────────────────────────────────────────────────────
     const loadRequests = async () => {
-      const page = $('prPage').value;
-      const res  = await fetch(`${API}/purchase-requests?page=${page}&pageSize=15`);
+      const pageSize = 15;
+      const page = Math.max(1, Number($('prPage').value) || 1);
+      const res  = await fetch(`${API}/purchase-requests?page=${page}&pageSize=${pageSize}`);
       const data = await res.json();
       const tbody = $('prBody');
       tbody.innerHTML = '';
-      (data.data || []).forEach(r => {
+      const rowOffset = (page - 1) * pageSize;
+      (data.data || []).forEach((r, idx) => {
+        const rowNumber = rowOffset + idx + 1;
         const tr = document.createElement('tr');
         tr.className = 'pr-row';
         tr.dataset.id = r.RequestID;
         tr.innerHTML = `
-          <td>${r.RequestID}</td>
+          <td>${rowNumber}</td>
           <td>${r.SupplierName || r.SupplierID}</td>
           <td>${r.EmployeeName || '—'}</td>
           <td>${fmtDate(r.RequestDate)}</td>
@@ -463,13 +441,13 @@
         });
         const body = await res.json();
         if (!res.ok) throw new Error(body.message || 'Error al crear solicitud');
-        msgEl.style.color = '#059669';
-        msgEl.textContent = `✓ Solicitud #${body.RequestID} creada.`;
+        showToast(`Solicitud #${body.RequestID} creada correctamente.`, 'success');
+        msgEl.textContent = '';
         await loadRequests();
         setTimeout(() => { showDetail(); loadPrDetail(body.RequestID); }, 1200);
       } catch (err) {
-        msgEl.style.color = '#dc2626';
-        msgEl.textContent = `✗ ${err.message}`;
+        showToast(err.message, 'error');
+        msgEl.textContent = '';
       }
     });
 
