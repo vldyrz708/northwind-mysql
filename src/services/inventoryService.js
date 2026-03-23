@@ -1,9 +1,95 @@
 import { execute, pool } from '../config/db.js';
+import { syncUpsert } from './firebaseSync.js';
+import {
+  getFirebaseDataMode,
+  ensureFirebaseDb,
+  getRecord,
+  createRecord
+} from './crudService.js';
+import { adjustProductStock } from './firebaseStockService.js';
 
-/**
- * Returns paginated stock list from products table with category/supplier info.
- */
-export const getStock = async ({ page = 1, pageSize = 25, search } = {}) => {
+const paginateArray = (rows, page = 1, pageSize = 25) => {
+  const limit = Math.max(1, Number(pageSize) || 25);
+  const currentPage = Math.max(1, Number(page) || 1);
+  const offset = (currentPage - 1) * limit;
+  return {
+    data: rows.slice(offset, offset + limit),
+    page: currentPage,
+    pageSize: limit,
+    total: rows.length
+  };
+};
+
+const normalizeTerm = (value) => {
+  const term = String(value ?? '').trim().toLowerCase();
+  return term || null;
+};
+
+const filterStockRows = (rows, search) => {
+  const term = normalizeTerm(search);
+  if (!term) {
+    return rows;
+  }
+  return rows.filter((row) =>
+    [row.ProductName, row.CategoryName, row.SupplierName]
+      .filter((value) => value !== null && value !== undefined)
+      .some((value) => String(value).toLowerCase().includes(term))
+  );
+};
+
+const formatEmployeeName = (employee) => {
+  if (!employee) {
+    return null;
+  }
+  const name = `${employee.FirstName || ''} ${employee.LastName || ''}`.trim();
+  return name || null;
+};
+
+const loadCollectionMap = async (db, collection, keyField) => {
+  const snapshot = await db.collection(collection).get();
+  const map = new Map();
+  snapshot.forEach((doc) => {
+    const data = doc.data();
+    const key = data[keyField] ?? Number(doc.id) ?? doc.id;
+    if (key !== undefined && key !== null) {
+      map.set(Number.isNaN(Number(key)) ? key : Number(key), data);
+    }
+  });
+  return map;
+};
+
+const getFirebaseDbOrThrow = () => ensureFirebaseDb();
+const isFirebaseOnly = () => getFirebaseDataMode().firebaseOnly;
+
+const getStockFromFirebase = async ({ page = 1, pageSize = 25, search } = {}) => {
+  const db = getFirebaseDbOrThrow();
+  const [productsSnap, categoriesMap, suppliersMap] = await Promise.all([
+    db.collection('products').get(),
+    loadCollectionMap(db, 'categories', 'CategoryID'),
+    loadCollectionMap(db, 'suppliers', 'SupplierID')
+  ]);
+  const rows = productsSnap.docs.map((doc) => {
+    const data = doc.data();
+    const category = data.CategoryID ? categoriesMap.get(Number(data.CategoryID)) : null;
+    const supplier = data.SupplierID ? suppliersMap.get(Number(data.SupplierID)) : null;
+    return {
+      ProductID: Number(data.ProductID ?? doc.id),
+      ProductName: data.ProductName || null,
+      UnitsInStock: Number(data.UnitsInStock ?? 0),
+      UnitsOnOrder: Number(data.UnitsOnOrder ?? 0),
+      ReorderLevel: Number(data.ReorderLevel ?? 0),
+      UnitPrice: data.UnitPrice != null ? Number(data.UnitPrice) : null,
+      Discontinued: Boolean(data.Discontinued),
+      CategoryName: category?.CategoryName || null,
+      SupplierName: supplier?.CompanyName || null
+    };
+  });
+  const filtered = filterStockRows(rows, search)
+    .sort((a, b) => String(a.ProductName || '').localeCompare(String(b.ProductName || '')));
+  return paginateArray(filtered, page, pageSize);
+};
+
+const getStockFromMySql = async ({ page = 1, pageSize = 25, search } = {}) => {
   const limit  = Math.max(1, Number(pageSize) || 25);
   const offset = (Math.max(1, Number(page) || 1) - 1) * limit;
   const params = { limit, offset };
@@ -31,10 +117,30 @@ export const getStock = async ({ page = 1, pageSize = 25, search } = {}) => {
   return { data, page: Number(page) || 1, pageSize: limit, total: countRow?.total ?? 0 };
 };
 
-/**
- * Paginated list of stock movements with product/employee names.
- */
-export const listMovements = async ({ page = 1, pageSize = 25 } = {}) => {
+export const getStock = async (options = {}) => (
+  isFirebaseOnly() ? getStockFromFirebase(options) : getStockFromMySql(options)
+);
+
+const listMovementsFromFirebase = async ({ page = 1, pageSize = 25 } = {}) => {
+  const db = getFirebaseDbOrThrow();
+  const [movementsSnap, productsMap, employeesMap] = await Promise.all([
+    db.collection('stock_movements').get(),
+    loadCollectionMap(db, 'products', 'ProductID'),
+    loadCollectionMap(db, 'employees', 'EmployeeID')
+  ]);
+  const rows = movementsSnap.docs
+    .map((doc) => doc.data())
+    .sort((a, b) => new Date(b.CreatedAt || b.createdAt || 0) - new Date(a.CreatedAt || a.createdAt || 0))
+    .map((movement) => ({
+      ...movement,
+      PID: movement.ProductID ?? null,
+      ProductName: movement.ProductID ? productsMap.get(Number(movement.ProductID))?.ProductName || null : null,
+      EmployeeName: movement.EmployeeID ? formatEmployeeName(employeesMap.get(Number(movement.EmployeeID))) : null
+    }));
+  return paginateArray(rows, page, pageSize);
+};
+
+const listMovementsFromMySql = async ({ page = 1, pageSize = 25 } = {}) => {
   const limit  = Math.max(1, Number(pageSize) || 25);
   const offset = (Math.max(1, Number(page) || 1) - 1) * limit;
   const sql = `
@@ -52,27 +158,53 @@ export const listMovements = async ({ page = 1, pageSize = 25 } = {}) => {
   return { data, page: Number(page) || 1, pageSize: limit, total: countRow?.total ?? 0 };
 };
 
-/**
- * Registers a stock exit (warehouse_exit type by default).
- * Validates stock availability, deducts UnitsInStock, writes movement record.
- * Uses a transaction to guarantee atomicity.
- *
- * @param {object} opts
- * @param {number} opts.ProductID
- * @param {number} opts.Quantity  - must be > 0
- * @param {string} [opts.Reason]
- * @param {number} [opts.EmployeeID]
- * @param {string} [opts.type]        - MovementType, default 'warehouse_exit'
- * @param {number} [opts.referenceId] - e.g., OrderID for sale_exit
- */
-export const registerExit = async ({
+export const listMovements = async (options = {}) => (
+  isFirebaseOnly() ? listMovementsFromFirebase(options) : listMovementsFromMySql(options)
+);
+
+const registerExitFirebase = async ({
   ProductID,
   Quantity,
   Reason = '',
   EmployeeID = null,
   type = 'warehouse_exit',
   referenceId = null,
-  referenceType = null,
+  referenceType = null
+}) => {
+  const qty = Number(Quantity);
+  if (!ProductID || !qty || qty <= 0) {
+    throw Object.assign(new Error('ProductID y Quantity > 0 son requeridos'), { status: 400 });
+  }
+  const adjustment = await adjustProductStock(ProductID, -qty, { forbidNegative: true });
+  const movement = await createRecord('stock_movements', {
+    ProductID: Number(ProductID),
+    Quantity: qty,
+    MovementType: type,
+    Reason: Reason || null,
+    ReferenceID: referenceId || null,
+    ReferenceType: referenceType || null,
+    EmployeeID: EmployeeID ? Number(EmployeeID) : null,
+    StockBefore: adjustment.previousStock,
+    StockAfter: adjustment.updatedStock,
+    CreatedAt: new Date().toISOString()
+  });
+  const employee = EmployeeID ? await getRecord('employees', { EmployeeID: Number(EmployeeID) }) : null;
+  return {
+    ...movement,
+    PID: Number(ProductID),
+    ProductName: adjustment.product.ProductName,
+    EmployeeName: formatEmployeeName(employee)
+  };
+};
+
+const registerExitMySql = async ({
+  ProductID,
+  Quantity,
+  Reason = '',
+  EmployeeID = null,
+  type = 'warehouse_exit',
+  referenceId = null,
+  referenceType = null
 }) => {
   const qty = Number(Quantity);
   if (!ProductID || !qty || qty <= 0) {
@@ -85,7 +217,7 @@ export const registerExit = async ({
 
     const [[product]] = await conn.execute(
       'SELECT ProductID, ProductName, UnitsInStock FROM products WHERE ProductID = ?',
-      [ProductID],
+      [ProductID]
     );
     if (!product) {
       throw Object.assign(new Error('Producto no encontrado'), { status: 404 });
@@ -95,13 +227,13 @@ export const registerExit = async ({
     if (current < qty) {
       throw Object.assign(
         new Error(`Stock insuficiente. Disponible: ${current}, solicitado: ${qty}`),
-        { status: 422 },
+        { status: 422 }
       );
     }
 
     await conn.execute(
       'UPDATE products SET UnitsInStock = UnitsInStock - ? WHERE ProductID = ?',
-      [qty, ProductID],
+      [qty, ProductID]
     );
 
     const stockBefore = current;
@@ -111,7 +243,7 @@ export const registerExit = async ({
       `INSERT INTO stock_movements
          (ProductID, Quantity, MovementType, Reason, ReferenceID, ReferenceType, EmployeeID, StockBefore, StockAfter)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [ProductID, qty, type, Reason || null, referenceId || null, referenceType || null, EmployeeID || null, stockBefore, stockAfter],
+      [ProductID, qty, type, Reason || null, referenceId || null, referenceType || null, EmployeeID || null, stockBefore, stockAfter]
     );
 
     await conn.commit();
@@ -123,8 +255,9 @@ export const registerExit = async ({
        LEFT JOIN products  p ON m.ProductID  = p.ProductID
        LEFT JOIN employees e ON m.EmployeeID = e.EmployeeID
        WHERE m.MovementID = ?`,
-      [res.insertId],
+      [res.insertId]
     );
+    syncUpsert('stock_movements', 'stock_movements', { MovementID: res.insertId }, movement);
     return movement;
   } catch (err) {
     await conn.rollback();
@@ -133,3 +266,7 @@ export const registerExit = async ({
     conn.release();
   }
 };
+
+export const registerExit = async (params) => (
+  isFirebaseOnly() ? registerExitFirebase(params) : registerExitMySql(params)
+);

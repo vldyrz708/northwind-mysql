@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Northwind · Inventario</title>
   <link rel="stylesheet" href="./assets/styles.css" />
+  <script>(function(){var t=localStorage.getItem('nw-theme');if(t)document.documentElement.setAttribute('data-theme',t);})()</script>
   <style>
     .inv-grid {
       display: grid;
@@ -14,7 +15,7 @@
     }
     .inv-full { grid-column: 1 / -1; }
     .stock-table td, .stock-table th { padding: .4rem .6rem; font-size: .85rem; }
-    .stock-table tr:hover td { background: var(--surface-2, #1e293b); }
+    .stock-table tr:hover td { background: var(--row-hover); }
     .move-table td, .move-table th { padding: .35rem .6rem; font-size: .82rem; }
     .chip-type { font-size: .72rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; background: #334155; color: #94a3b8; }
     .chip-warehouse_exit { background: rgba(251,191,36,.15); color: #fbbf24; border: 1px solid rgba(251,191,36,.25); }
@@ -28,61 +29,33 @@
 </head>
 <body>
   <!-- ── Navigation ── -->
-  <nav class="top-nav">
+  <nav class="top-nav" id="main-nav">
     <a class="brand" href="./index.html" aria-label="Ir al panel principal">
       <span class="brand-mark" aria-hidden="true">NW</span>
       <div class="brand-copy"><strong>Northwind Ops</strong><small>Control Room</small></div>
     </a>
     <div class="nav-links">
       <a href="./studio.html">Ops Studio</a>
-      <details class="nav-menu">
-        <summary>Módulos</summary>
-        <div class="nav-menu__panel">
-          <div class="nav-menu__group" data-group="operaciones">
-            <span>Operaciones</span>
-            <a href="./inventory.html">Inventario</a>
-            <a href="./sales.html">Ventas</a>
-            <a href="./purchase-requests.html">Solicitudes de compra</a>
-          </div>
-          <div class="nav-menu__group" data-group="catalogo">
-            <span>Catálogo</span>
-            <a href="./products.html">Productos</a>
-            <a href="./categories.html">Categorías</a>
-          </div>
-          <div class="nav-menu__group" data-group="ventas">
-            <span>Transacciones</span>
-            <a href="./orders.html">Órdenes</a>
-            <a href="./order-details.html">Detalle de órdenes</a>
-          </div>
-          <div class="nav-menu__group" data-group="relaciones">
-            <span>Relaciones</span>
-            <a href="./customers.html">Clientes</a>
-            <a href="./suppliers.html">Proveedores</a>
-          </div>
-          <div class="nav-menu__group" data-group="talento">
-            <span>Talento &amp; logística</span>
-            <a href="./employees.html">Empleados</a>
-            <a href="./shippers.html">Transportistas</a>
-          </div>
-        </div>
-      </details>
-      <a href="./sales.html">Ventas</a>
+      <a href="./orders.html">Órdenes</a>
       <a class="nav-cta" href="https://github.com/vldyrz708/northwind-mysql" target="_blank" rel="noreferrer">GitHub</a>
-    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+    </div>
+    <hr class="nav-divider">
+    <span class="nav-section-label">Módulos</span>
+    <div class="nav-categories" aria-label="Módulos">
+      <a href="./studio.html" data-tone="ops">Multi-tabla</a>
+      <a href="./inventory.html" data-tone="ops" aria-current="page">Inventario</a>
+      <a href="./sales.html" data-tone="sales">Ventas</a>
+      <a href="./purchase-requests.html" data-tone="supply">Compras</a>
+      <a href="./products.html" data-tone="catalog">Productos</a>
+      <a href="./categories.html" data-tone="catalog">Categorías</a>
+      <a href="./orders.html" data-tone="sales">Órdenes</a>
+      <a href="./customers.html" data-tone="crm">Clientes</a>
+      <a href="./suppliers.html" data-tone="supply">Proveedores</a>
+      <a href="./employees.html" data-tone="people">Talento</a>
+      <a href="./shippers.html" data-tone="log">Logística</a>
+    </div>
   </nav>
-  <div class="nav-categories" aria-label="Accesos rápidos">
-    <a href="./studio.html" data-tone="ops">Multi-tabla</a>
-    <a href="./inventory.html" data-tone="ops" aria-current="page">Inventario</a>
-    <a href="./sales.html" data-tone="sales">Ventas</a>
-    <a href="./purchase-requests.html" data-tone="supply">Compras</a>
-    <a href="./products.html" data-tone="catalog">Productos</a>
-    <a href="./categories.html" data-tone="catalog">Categorías</a>
-    <a href="./orders.html" data-tone="sales">Órdenes</a>
-    <a href="./customers.html" data-tone="crm">Clientes</a>
-    <a href="./suppliers.html" data-tone="supply">Proveedores</a>
-    <a href="./employees.html" data-tone="people">Talento</a>
-    <a href="./shippers.html" data-tone="log">Logística</a>
-  </div>
+  <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="main-nav">☰</button>
 
   <!-- ── Hero ── -->
   <header class="hero hero--detail">
@@ -213,6 +186,7 @@
   </div><!-- /inv-grid -->
 
   <script type="module">
+    import { showToast, showConfirm } from './assets/crudPage.js';
     const API = '/api';
     const $ = (id) => document.getElementById(id);
 
@@ -266,16 +240,19 @@
 
     // ── Stock grid ────────────────────────────────────────────────────────────
     const loadStock = async () => {
-      const page   = $('stockPage').value;
+      const pageSize = 20;
+      const page   = Math.max(1, Number($('stockPage').value) || 1);
       const search = $('stockSearch').value;
-      const res  = await fetch(`${API}/inventory/stock?page=${page}&pageSize=20&search=${encodeURIComponent(search)}`);
+      const res  = await fetch(`${API}/inventory/stock?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`);
       const data = await res.json();
       const tbody = $('stockBody');
       tbody.innerHTML = '';
-      (data.data || []).forEach(p => {
+      const rowOffset = (page - 1) * pageSize;
+      (data.data || []).forEach((p, idx) => {
+        const rowNumber = rowOffset + idx + 1;
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${p.ProductID}</td>
+          <td>${rowNumber}</td>
           <td>${p.ProductName}</td>
           <td>${p.CategoryName || '—'}</td>
           <td>${p.SupplierName || '—'}</td>
@@ -308,12 +285,15 @@
 
     // ── Movements ─────────────────────────────────────────────────────────────
     const loadMovements = async () => {
-      const page = $('movPage').value;
-      const res  = await fetch(`${API}/inventory/movements?page=${page}&pageSize=15`);
+      const pageSize = 15;
+      const page = Math.max(1, Number($('movPage').value) || 1);
+      const res  = await fetch(`${API}/inventory/movements?page=${page}&pageSize=${pageSize}`);
       const data = await res.json();
       const tbody = $('movBody');
       tbody.innerHTML = '';
-      (data.data || []).forEach((m) => {
+      const rowOffset = (page - 1) * pageSize;
+      (data.data || []).forEach((m, idx) => {
+        const rowNumber = rowOffset + idx + 1;
         const tr = document.createElement('tr');
         const stockTrace = (m.StockBefore != null && m.StockAfter != null)
           ? `${m.StockBefore} → ${m.StockAfter}`
@@ -322,7 +302,7 @@
           ? `${m.ReferenceID}${m.ReferenceType ? ` (${m.ReferenceType})` : ''}`
           : '—';
         tr.innerHTML = `
-          <td>${m.MovementID}</td>
+          <td>${rowNumber}</td>
           <td>${typeChip(m.MovementType)}</td>
           <td>${m.ProductName || m.ProductID}</td>
           <td>${m.Quantity}</td>
@@ -393,9 +373,6 @@
       e.preventDefault();
       const productLabel = $('exitProduct').selectedOptions[0]?.text || 'el producto';
       const qty = Number($('exitQty').value);
-      if (!confirm(`¿Confirmar salida de ${qty} unidad(es) de "${productLabel}"?`)) { return; }
-      const msgEl = $('exitMsg');
-      msgEl.textContent = '';
       const movType = $('exitType').value || 'warehouse_exit';
       const payload = {
         ProductID:     Number($('exitProduct').value),
@@ -406,29 +383,33 @@
         ReferenceID:   $('exitReference').value ? Number($('exitReference').value) : null,
         ReferenceType: movType === 'sale_exit' ? 'order' : null,
       };
-      try {
-        const res = await fetch(`${API}/inventory/exit`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const body = await res.json();
-        if (!res.ok) throw new Error(body.message || 'Error al registrar salida');
-        const trace = (body.StockBefore != null && body.StockAfter != null)
-          ? ` — Stock: ${body.StockBefore} → ${body.StockAfter}`
-          : '';
-        msgEl.style.color = '#059669';
-        msgEl.textContent = `✓ Salida registrada. Movimiento #${body.MovementID}${trace}`;
-        $('exitForm').reset();
-        $('exitCurrentStock').value = '';
-        $('exitStockAfter').value = '';
-        $('exitRefRow').style.display = 'none';
-        validateExitForm();
-        await Promise.all([loadStock(), loadMovements(), refreshProductOptions()]);
-      } catch (err) {
-        msgEl.style.color = '#dc2626';
-        msgEl.textContent = `✗ ${err.message}`;
-      }
+      showConfirm(
+        `¿Registrar salida de ${qty} unidad(es) de "${productLabel}"?`,
+        async () => {
+          try {
+            const res = await fetch(`${API}/inventory/exit`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.message || 'Error al registrar salida');
+            const trace = (body.StockBefore != null && body.StockAfter != null)
+              ? ` Stock: ${body.StockBefore} → ${body.StockAfter}`
+              : '';
+            showToast(`Movimiento #${body.MovementID} registrado.${trace}`, 'success');
+            $('exitForm').reset();
+            $('exitCurrentStock').value = '';
+            $('exitStockAfter').value = '';
+            $('exitRefRow').style.display = 'none';
+            validateExitForm();
+            await Promise.all([loadStock(), loadMovements(), refreshProductOptions()]);
+          } catch (err) {
+            showToast(err.message, 'error');
+          }
+        },
+        'Confirmar'
+      );
     });
 
     $('exitClear').addEventListener('click', () => {

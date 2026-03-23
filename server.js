@@ -17,6 +17,7 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const firebaseOnlyMode = String(process.env.USE_FIREBASE_DATA || '').toLowerCase() === 'firebase-only';
 
 const app = express();
 const PREFERRED_PORT = Number(process.env.APP_PORT || process.env.PORT || 3000) || 3000;
@@ -28,8 +29,11 @@ app.use(morgan('dev'));
 
 app.get('/api/health', async (_req, res, next) => {
   try {
+    if (firebaseOnlyMode) {
+      return res.json({ status: 'ok', mysql: 'skipped', mode: 'firebase-only' });
+    }
     await testConnection();
-    res.json({ status: 'ok' });
+    res.json({ status: 'ok', mysql: 'connected' });
   } catch (error) {
     next(error);
   }
@@ -49,6 +53,32 @@ app.use(express.static(publicDir));
 
 app.use((err, _req, res, _next) => {
   console.error(err);
+
+  // MySQL FK constraint: cannot delete/update a parent row (errno 1451)
+  if (err.errno === 1451 || err.code === 'ER_ROW_IS_REFERENCED_2') {
+    // Extract the referencing table name from the MySQL message when possible
+    const match = err.message?.match(/`(\w+)`\.`(\w+)`/);
+    const refTable = match ? match[2] : null;
+    const detail = refTable ? ` (tabla relacionada: ${refTable})` : '';
+    return res.status(409).json({
+      message: `No se puede eliminar este registro porque está siendo usado por otros registros relacionados${detail}. Elimine primero los registros dependientes.`
+    });
+  }
+
+  // MySQL FK constraint: child row references non-existent parent (errno 1452)
+  if (err.errno === 1452 || err.code === 'ER_NO_REFERENCED_ROW_2') {
+    return res.status(409).json({
+      message: 'El valor seleccionado no existe en la tabla de referencia. Verifique los campos relacionados.'
+    });
+  }
+
+  // MySQL duplicate entry (errno 1062)
+  if (err.errno === 1062 || err.code === 'ER_DUP_ENTRY') {
+    return res.status(409).json({
+      message: 'Ya existe un registro con ese valor. El campo debe ser único.'
+    });
+  }
+
   res.status(err.status || 500).json({
     message: err.message || 'Error interno del servidor'
   });
@@ -69,7 +99,11 @@ const listenOnPort = (port) => new Promise((resolve, reject) => {
 
 const start = async () => {
   try {
-    await testConnection();
+    if (!firebaseOnlyMode) {
+      await testConnection();
+    } else {
+      console.warn('[Startup] Modo solo Firebase: se omite la verificación de MySQL.');
+    }
     let port = PREFERRED_PORT;
     let attempt = 0;
     while (attempt < MAX_PORT_ATTEMPTS) {

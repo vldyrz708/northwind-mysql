@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Northwind · Ventas</title>
   <link rel="stylesheet" href="./assets/styles.css" />
+  <script>(function(){var t=localStorage.getItem('nw-theme');if(t)document.documentElement.setAttribute('data-theme',t);})()</script>
   <style>
     .sales-layout { display: grid; grid-template-columns: 1fr 420px; gap: 1.5rem; padding: 1.5rem; align-items: start; }
     @media (max-width: 900px) { .sales-layout { grid-template-columns: 1fr; } }
     .sale-row td { font-size: .85rem; padding: .4rem .55rem; vertical-align: middle; }
-    .sale-row:hover td { background: var(--surface-2, #1e293b); cursor: pointer; }
+    .sale-row:hover td { background: var(--row-hover); cursor: pointer; }
     .sale-row.selected td { background: rgba(56,189,248,.1); }
     .items-section { border-top: 1px solid var(--border,#334155); margin-top: .75rem; padding-top: .75rem; }
     .item-row { display: grid; grid-template-columns: 1fr 60px 80px 60px 28px; gap: .4rem; align-items: end; margin-bottom: .4rem; }
@@ -25,61 +26,33 @@
 </head>
 <body>
   <!-- ── Navigation ── -->
-  <nav class="top-nav">
+  <nav class="top-nav" id="main-nav">
     <a class="brand" href="./index.html" aria-label="Ir al panel principal">
       <span class="brand-mark" aria-hidden="true">NW</span>
       <div class="brand-copy"><strong>Northwind Ops</strong><small>Control Room</small></div>
     </a>
     <div class="nav-links">
       <a href="./studio.html">Ops Studio</a>
-      <details class="nav-menu">
-        <summary>Módulos</summary>
-        <div class="nav-menu__panel">
-          <div class="nav-menu__group" data-group="operaciones">
-            <span>Operaciones</span>
-            <a href="./inventory.html">Inventario</a>
-            <a href="./sales.html">Ventas</a>
-            <a href="./purchase-requests.html">Solicitudes de compra</a>
-          </div>
-          <div class="nav-menu__group" data-group="catalogo">
-            <span>Catálogo</span>
-            <a href="./products.html">Productos</a>
-            <a href="./categories.html">Categorías</a>
-          </div>
-          <div class="nav-menu__group" data-group="transacciones">
-            <span>Transacciones</span>
-            <a href="./orders.html">Órdenes</a>
-            <a href="./order-details.html">Detalle de órdenes</a>
-          </div>
-          <div class="nav-menu__group" data-group="relaciones">
-            <span>Relaciones</span>
-            <a href="./customers.html">Clientes</a>
-            <a href="./suppliers.html">Proveedores</a>
-          </div>
-          <div class="nav-menu__group" data-group="talento">
-            <span>Talento &amp; logística</span>
-            <a href="./employees.html">Empleados</a>
-            <a href="./shippers.html">Transportistas</a>
-          </div>
-        </div>
-      </details>
-      <a href="./sales.html">Ventas</a>
+      <a href="./orders.html">Órdenes</a>
       <a class="nav-cta" href="https://github.com/vldyrz708/northwind-mysql" target="_blank" rel="noreferrer">GitHub</a>
-    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+    </div>
+    <hr class="nav-divider">
+    <span class="nav-section-label">Módulos</span>
+    <div class="nav-categories" aria-label="Módulos">
+      <a href="./studio.html" data-tone="ops">Multi-tabla</a>
+      <a href="./inventory.html" data-tone="ops">Inventario</a>
+      <a href="./sales.html" data-tone="sales" aria-current="page">Ventas</a>
+      <a href="./purchase-requests.html" data-tone="supply">Compras</a>
+      <a href="./products.html" data-tone="catalog">Productos</a>
+      <a href="./categories.html" data-tone="catalog">Categorías</a>
+      <a href="./orders.html" data-tone="sales">Órdenes</a>
+      <a href="./customers.html" data-tone="crm">Clientes</a>
+      <a href="./suppliers.html" data-tone="supply">Proveedores</a>
+      <a href="./employees.html" data-tone="people">Talento</a>
+      <a href="./shippers.html" data-tone="log">Logística</a>
+    </div>
   </nav>
-  <div class="nav-categories" aria-label="Accesos rápidos">
-    <a href="./studio.html" data-tone="ops">Multi-tabla</a>
-    <a href="./inventory.html" data-tone="ops">Inventario</a>
-    <a href="./sales.html" data-tone="sales" aria-current="page">Ventas</a>
-    <a href="./purchase-requests.html" data-tone="supply">Compras</a>
-    <a href="./products.html" data-tone="catalog">Productos</a>
-    <a href="./categories.html" data-tone="catalog">Categorías</a>
-    <a href="./orders.html" data-tone="sales">Órdenes</a>
-    <a href="./customers.html" data-tone="crm">Clientes</a>
-    <a href="./suppliers.html" data-tone="supply">Proveedores</a>
-    <a href="./employees.html" data-tone="people">Talento</a>
-    <a href="./shippers.html" data-tone="log">Logística</a>
-  </div>
+  <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="main-nav">☰</button>
 
   <!-- ── Hero ── -->
   <header class="hero hero--detail">
@@ -209,6 +182,8 @@
   </div>
 
   <script type="module">
+    import { showToast } from './assets/crudPage.js';
+
     const API = '/api';
     const $ = (id) => document.getElementById(id);
     const fmtMoney = (n) => n != null ? `$${Number(n).toFixed(2)}` : '$0.00';
@@ -246,13 +221,16 @@
 
     // ── Sales list ────────────────────────────────────────────────────────────
     const loadSales = async () => {
-      const page   = $('salePage').value;
+      const pageSize = 15;
+      const page   = Math.max(1, Number($('salePage').value) || 1);
       const search = $('saleSearch').value;
-      const res  = await fetch(`${API}/sales?page=${page}&pageSize=15&search=${encodeURIComponent(search)}`);
+      const res  = await fetch(`${API}/sales?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`);
       const data = await res.json();
       const tbody = $('salesBody');
       tbody.innerHTML = '';
-      (data.data || []).forEach(s => {
+      const rowOffset = (page - 1) * pageSize;
+      (data.data || []).forEach((s, idx) => {
+        const rowNumber = rowOffset + idx + 1;
         const shipped = s.ShippedDate
           ? `<span class="badge badge-shipped">${fmtDate(s.ShippedDate)}</span>`
           : `<span class="badge badge-pending">Pendiente</span>`;
@@ -260,7 +238,7 @@
         tr.className = 'sale-row';
         tr.dataset.id = s.OrderID;
         tr.innerHTML = `
-          <td>${s.OrderID}</td>
+          <td>${rowNumber}</td>
           <td>${fmtDate(s.OrderDate)}</td>
           <td>${s.CustomerName || s.CustomerID}</td>
           <td>${s.EmployeeName?.trim() || '—'}</td>
@@ -522,16 +500,16 @@
         });
         const body = await res.json();
         if (!res.ok) throw new Error(body.message || 'Error al crear venta');
-        msgEl.style.color = '#059669';
-        msgEl.textContent = `✓ Venta #${body.OrderID} creada correctamente.`;
+        showToast(`Venta #${body.OrderID} creada correctamente.`, 'success');
+        msgEl.textContent = '';
         await loadSales();
         setTimeout(() => {
           showDetail();
           loadSaleDetail(body.OrderID);
         }, 1200);
       } catch (err) {
-        msgEl.style.color = '#dc2626';
-        msgEl.textContent = `✗ ${err.message}`;
+        showToast(err.message, 'error');
+        msgEl.textContent = '';
       }
     });
 
